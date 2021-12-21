@@ -1,20 +1,19 @@
 import torch
 import numpy as np
 import torch.nn as nn
+from .base_model import AbstractModel
 
-class FC(torch.nn.Module):
-    def __init__(self, obs_shape, n_actions, embed_dim = 50, repeat=1, softmax=False):
-        super().__init__()
-        input_size = np.prod(obs_shape)
+class FC(AbstractModel):
+    def __init__(self, input_shape, out_shape, embed_dim = 64, repeat=1):
+        super().__init__(input_shape, out_shape)
+        input_size = np.prod(input_shape)
 
-        self.l1 = nn.Sequential(nn.Linear(input_size, embed_dim), nn.GELU())
-        embed_layer = [nn.Sequential(nn.Linear(embed_dim, embed_dim),nn.GELU()) for i in range(repeat)]
+        self.l1 = nn.Sequential(nn.Linear(input_size, embed_dim), nn.ReLU())
+        embed_layer = [nn.Sequential(nn.Linear(embed_dim, embed_dim),nn.ReLU()) for i in range(repeat)]
         self.l2 = nn.Sequential(*embed_layer)
-        if not softmax:
-            self.l3 = nn.Sequential(nn.Linear(embed_dim, n_actions))
-        else:
-            self.l3 = nn.Sequential(nn.Linear(embed_dim, n_actions), nn.Softmax())
 
+        self.l3 = nn.Linear(embed_dim, out_shape)
+    
 
     def forward(self, x):
         x = torch.flatten(x, start_dim=1)
@@ -22,3 +21,6 @@ class FC(torch.nn.Module):
         x = self.l2(x)
         x = self.l3(x)
         return x
+    
+    def reset(self):
+        pass

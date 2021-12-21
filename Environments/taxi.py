@@ -664,11 +664,12 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
         return obs['image']
 
     def step(self, actions):
-        if type(actions) not in [np.int ,np.int32]:
+        action_types = [np.int ,np.int32, np.int64]
+        if type(actions) not in action_types:
             a = actions[0]
         else:
             a = actions
-        assert type(actions) in [np.int ,np.int32] or len(actions) == 1
+        assert type(actions) in action_types or len(actions) == 1
 
         transitions = self.P[self.s][a]
         i = discrete.categorical_sample([t[0] for t in transitions], self.np_random)  # only 0 index is chosen

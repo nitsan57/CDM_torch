@@ -31,7 +31,7 @@ class Random_Curriculum(Curriculum_Manager):
 
         for i in range(n_iters):
             env = self.create_env()
-            self.trainee.train_n_steps(env,n_steps_p_env) #train 10K steps per generated_env
+            self.trainee.train_n_steps(env, n_steps_p_env) #train 10K steps per generated_env
             name = self.trainee.__class__.__name__
             self.trainee.save_agent(f'{save_dir}/{name}_{i}.ckpt')
         

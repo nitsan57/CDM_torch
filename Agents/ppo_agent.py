@@ -4,65 +4,35 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 from Models.fc import FC
-from .agent_utils import ExperienceReplay, calc_reward_to_go
+from .agent_utils import calc_returns, calc_gaes
 from .agent import RL_Agent
-import tqdm
+from torch.distributions import Categorical
+
+
 
 class PPO_Agent(RL_Agent):
     #TODO SUPPORT DIFFERNET OPTIMIZERS
     def __init__(self, obs_shape, n_actions, batch_size=32,
-                 max_mem_size=10000, lr=0.0001, discount_factor=0.99, exploration_epsilon=1, eps_end=0.05, eps_dec=1e-4, model=FC, device = 'cpu'):
-        super().__init__(obs_shape,max_mem_size, batch_size, device=device) # inits 
-
+                 max_mem_size=10000, lr=0.0001, discount_factor=0.99, num_epochs_per_update=4, num_parallel_envs=1, model=FC, rnn=False, device = 'cpu'):
+        """ppo recoomeneded is 1 parallel env"""
+        super().__init__(obs_shape, max_mem_size, batch_size, num_parallel_envs, rnn, device=device) # inits 
+        # self.losses = []
         self.discount_factor = discount_factor
-        self.exploration_epsilon = exploration_epsilon
-        self.eps_min = eps_end
-        self.eps_dec = eps_dec
         self.action_space = [i for i in range(n_actions)]
-        self.criterion = nn.SmoothL1Loss().to(device)
+        self.criterion = nn.MSELoss().to(device)
+        self.model_constructor = model
+        self.policy_nn = model(input_shape=obs_shape, out_shape=n_actions).to(device)
+        self.actor_optimizer = optim.Adam(self.policy_nn.parameters(), lr)
 
-        self.policy_model = model(n_actions=n_actions, obs_shape=obs_shape, softmax=True).to(device)
-        self.policy_optimizer = optim.Adam(self.policy_model.parameters(),lr)
+        self.actor_model = lambda x : Categorical(logits=F.softmax(self.policy_nn(x), dim=1))
 
-        self.value_model = model(n_actions=n_actions, obs_shape=obs_shape).to(device)
-        self.value_optimizer = optim.Adam(self.value_model.parameters(),lr)
-        super().__init__()
-
-
-    def ppo_loss(advantages, prediction_picks, actions, y_pred):
-        # Defined in https://arxiv.org/abs/1707.06347
-        LOSS_CLIPPING = 0.2
-        ENTROPY_LOSS = 5e-3
-
-        prob = y_pred * actions
-        old_prob = actions * prediction_picks
-        r = prob/(old_prob + 1e-10)
-        p1 = r * advantages
-        p2 = torch.clip(r, min_value=1 - LOSS_CLIPPING, max_value=1 + LOSS_CLIPPING) * advantages
-        loss =  -torch.mean(torch.minimum(p1, p2) + ENTROPY_LOSS * -(prob * torch.log(prob + 1e-10)))
-        return loss
-
-
-    # def train_episodial(self, env, n_episodes):
-    #     self.set_train_mode()
-    #     pbar = tqdm(range(n_episodes))
-    #     curr_training_steps = 0
-    #     for i in pbar:
-    #         self.curr_collect_step = len(self.experience)
-    #         reward_vector = self.collect_episode_obs(env)
-    #         num_steps_collected = len(reward_vector)
-    #         curr_training_steps +=num_steps_collected
-            
-    #         desciption = f"episode {i}, R:{np.sum(reward_vector)}, total_steps:{curr_training_steps}"
-    #         pbar.set_description(desciption)
-
-    #         self.curr_collect_step += len(reward_vector) # how many steps where collected before update policy
-    #         if len(self.experience) < self.batch_size or self.curr_collect_step < self.collect_before_update:
-    #             #collect more sampels if not enough..
-    #             continue
-    #         self.curr_collect_step  = 0
-    #         states, actions, rewards, next_states = self.get_experiences(random_samples=True)
-    #         self.update_policy(states, actions, rewards, next_states)
+        self.critic_model = model(input_shape=obs_shape, out_shape=1).to(device) #output single value - V(s) and not Q(s,a) as before
+        self.critic_optimizer = optim.Adam(self.critic_model.parameters(), lr)
+        self.num_epochs_per_update = num_epochs_per_update
+        self.clip_decay =  1
+        self.clip_param =  0.1
+        #FOR PPO UPDATE:
+        self.init_ppo_buffers()
 
 
     def save_agent(self,f_name):
@@ -71,10 +41,12 @@ class PPO_Agent(RL_Agent):
         'model':self.Q_network.state_dict()
         }, f_name)
 
+
     def load_agent(self,f_name):
         checkpoint = torch.load(f_name)
         self.Q_network.load_state_dict(checkpoint['model'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
+
 
     def train(self, env, n_episodes):
         train_episode_rewards = super().train(env, n_episodes)
@@ -82,80 +54,117 @@ class PPO_Agent(RL_Agent):
         return train_episode_rewards
 
 
-    def act(self, observation):
-        if self.act_mode or np.random.random() > self.exploration_epsilon:
-            state = torch.tensor([observation]).to(self.device)
-            actions = self.Q_network(state)
-            action = torch.argmax(actions).item()
-        else:
-            action = np.random.choice(self.action_space).astype(np.int32)
-        # TO FIX
+    def act(self, observations, num_obs=1):
+        """batched observation only!"""
+        if num_obs != len(observations) and num_obs == 1:
+            observations = observations[np.newaxis, :]
+        elif num_obs != len(observations) and num_obs != 1:
+            raise Exception(f"number of observations do not match real observation len{num_obs}, vs {len(observations)}")
 
-        return action
+        states = torch.from_numpy(observations).to(self.device)
+        with torch.no_grad():
+            actions_dist = self.actor_model(states)
+            if self.eval_mode:
+                # all_actions = torch.max(actions_dist.probs, axis=1)[1]
+                selected_actions = torch.argmax(actions_dist.probs, 1).detach().cpu().numpy().astype(np.int32)
+            else:
+                action = actions_dist.sample()
+                log_probs = actions_dist.log_prob(action).detach().flatten().float()
+                values = self.critic_model(states).detach().flatten().float()
+                for i in range(num_obs):
+                    self.logits[i].append(log_probs[i])
+                    self.values[i].append(values[i])
+                selected_actions = action.detach().cpu().numpy().astype(np.int32)
+
+        return self.return_correct_actions_dim(selected_actions, num_obs)
+
+
+    def init_ppo_buffers(self):
+        self.logits = [[] for i in range(self.batch_size)]
+        self.values = [[] for i in range(self.batch_size)]
 
 
     def get_experiences(self, random_samples):
-        """override random_samples and use only orderd samples"""
-        observations, actions, rewards, dones, next_observations = super().get_experiences(random_samples=False)
-        return observations, actions, rewards, dones, next_observations
+        """Current PPO only suports random_Samples = False!!"""
+        assert random_samples == False, "Current PPO only suports random_Samples = False!!"
+        states, actions, rewards, dones, next_states = super().get_experiences(random_samples) 
+
+        # ONLY POSSIBLE SINCE RANDOM SAMPLES ARE FALSE!!!
+        done_indices = np.where(dones.cpu().numpy() == True)[0]
+        values = torch.zeros_like(rewards, dtype=torch.float32, device=self.device)
+        logits = torch.zeros_like(rewards, dtype=torch.float32, device=self.device)
+        first_indice = 0
+
+        for i in range(self.num_parallel_envs):
+            current_done_indice = done_indices[i]
+            curr_episode_len = current_done_indice - first_indice
+            values[first_indice:current_done_indice] = torch.tensor(self.values[i][:curr_episode_len])
+            logits[first_indice:current_done_indice] = torch.tensor(self.logits[i][:curr_episode_len])
+            first_indice = current_done_indice
+
+        return states, actions, rewards, dones, next_states, values, logits
+    
+
+    def update_policy(self):
+        # assert self.num_parallel_envs == 1 and self.rnn or not self.rnn, "currently impl does not support multiple parralel envs"
+        # states, actions, rewards, dones, next_states, values, logits = self.get_rnn_exp(random_samples=False)
+        states, actions, rewards, dones, next_states, values, logits = self.get_experiences(random_samples=False)
+        returns = calc_returns(rewards, dones, self.discount_factor)
+        advantages = calc_gaes(rewards, values, dones, self.discount_factor)
+
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
+
+        self.init_ppo_buffers()
         
 
+        all_samples_len = len(states)
+        entropy_coeff = 0.001
+        avg_c_loss = 0
+        for e in range(self.num_epochs_per_update):
+            indices_perm = torch.arange(len(returns))
+            if self.rand_perm:
+                #do not when using RNN
+                indices_perm = torch.randperm(len(returns))
+            states = states[indices_perm]
+            actions = actions[indices_perm]
+            returns = returns[indices_perm]
+            advantages = advantages[indices_perm]
+            logits = logits[indices_perm]
 
-    def get_advantages(values, rewards):
-        returns = []
-        gae = 0
-        for i in reversed(range(len(rewards))):
-            delta = rewards[i] + gamma * values[i + 1] - values[i]
-            gae = delta + gamma * lmbda * masks[i] * gae
-            returns.insert(0, gae + values[i])
+            for b in range(0, all_samples_len, self.batch_size):
+                batch_states = states[b:b+self.batch_size]
+                batched_actions = actions[b:b+self.batch_size]
+                batched_returns = returns[b:b+self.batch_size]
+                batched_advantage = advantages[b:b+self.batch_size]
+                batched_logits = logits[b:b+self.batch_size]
 
-        adv = np.array(returns) - values[:-1]
-        return returns, (adv - np.mean(adv)) / (np.std(adv) + 1e-10)
+                dist = self.actor_model(batch_states)
+                values = self.critic_model(batch_states)
 
-    def update_policy(self, observations, actions, rewards, dones, next_observations):
-        done_indices = np.where(dones == True)[0]
-        rewards_per_episodes = rewards.tensor_split(done_indices, 1)
-        rewards_to_go_per_episode = []
-        for episode_rewards in rewards_per_episodes:
-            rewards_to_go_per_episode.append(calc_reward_to_go(episode_rewards))
-        rewards_to_go_per_episode = torch.cat(rewards_to_go_per_episode, 1)
+                entropy = dist.entropy().mean()
+                new_log_probs = dist.log_prob(batched_actions)                
 
-        # num_epochs = 4
-        # for j in range(num_epochs):
-        start_idx = 0
-        for i, done_idx in enumerate(done_indices):
-            self.value_optimizer.zero_grad()
-            values = self.value_model(observations[start_idx:done_idx])
-            rewards_to_go = rewards_to_go_per_episode[i]
+                old_log_probs = batched_logits # from acted policy
 
-            loss = self.criterion(values, rewards_to_go)
+                ratio = (new_log_probs - old_log_probs).exp()
+                surr1 = ratio
+                surr2 = torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param)
+                actor_loss  = - ((torch.min(surr1, surr2) * batched_advantage).mean()) - entropy_coeff * entropy
+                critic_loss = self.criterion(values, torch.unsqueeze(batched_returns, 1))
+                kl_div = (old_log_probs - new_log_probs).mean()
 
-            loss.backward()
+                self.critic_optimizer.zero_grad()
+                critic_loss.backward()
+                avg_c_loss  += critic_loss.item()
+                self.critic_optimizer.step()
 
-            self.value_optimizer.step()
+                if torch.abs(kl_div) > 0.01:
+                    continue
+                self.actor_optimizer.zero_grad()
+                actor_loss.backward()
+                # nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
+                self.actor_optimizer.step()
 
-            #  observations = observations.float().to(device)
-            #     actions = actions.long().to(device)
-            #     advantages = advantages.float().to(device)
-            #     old_log_probabilities = log_probabilities.float().to(device)
 
-            self.policy_optimizer.zero_grad()
 
-            # new_log_probabilities, entropy = policy_model.evaluate_actions(
-            #     observations, actions
-            # )
-
-                # loss = (
-                #     ac_loss(
-                #         new_log_probabilities,
-                #         old_log_probabilities,
-                #         advantages,
-                #         epsilon_clip=clip,
-                #     ).mean()
-                #     - c1 * entropy.mean()
-                # )
-
-            loss.backward()
-
-            self.policy_optimizer.step()
-            start_idx = done_idx
+        # self.losses.append(avg_c_loss / (self.batch_size*self.num_epochs_per_update))
