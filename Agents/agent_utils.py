@@ -1,6 +1,6 @@
-from os import POSIX_FADV_NOREUSE
 import numpy as np
 import torch
+import copy
 
 def calc_returns(rewards, dones, discount_factor):
   """works with rewards vector which consitst of many epidsodes"""
@@ -43,8 +43,7 @@ def calc_gaes(rewards, values, dones, discount_factor=0.99, decay=0.95):
 
 class ExperienceReplay:
 #TODO: support continous infinte env by removeing long seeing states without dones
-    def __init__(self, capacity, obs_shape, batch_size=64, continous_mem = False):
-      self.batch_size = batch_size
+    def __init__(self, capacity, obs_shape, continous_mem = False):
       self.obs_shape = obs_shape
       self.capacity = capacity
       self.init_buffers()
@@ -58,40 +57,46 @@ class ExperienceReplay:
 
 
     def append(self, curr_obs, action, reward, done, next_obs):
-        num_samples = len(curr_obs)
+      #extra_exps
+ 
+      num_samples = len(curr_obs)
 
-        free_space = self.capacity - self.curr_size
-        if num_samples > self.capacity:
-          self.curr_size = 0
-          curr_obs = curr_obs[:self.capacity]
-          action = action[:self.capacity]
-          reward = reward[:self.capacity]
-          done = done[:self.capacity]
-          next_obs = next_obs[:self.capacity]
-          num_samples = self.capacity
-          done[-1] = True
-
-
-        elif self.__len__() + num_samples > self.capacity and not self.continous_mem:         
-            dones = np.where(self.all_buffers[self.dones_index]==True)[0]
-            relevant_index = np.where(dones > num_samples - free_space)[0][0]
-            done_index = dones[relevant_index]
-
-
-            for i in range(len(self.all_buffers)):
-                self.all_buffers[i][:done_index+1] = 0
-                self.all_buffers[i] = np.roll(self.all_buffers[i], -done_index -1, axis=0)
-           
-            self.curr_size -= (done_index+1)
+      free_space = self.capacity - self.curr_size
+      if num_samples > self.capacity:
+        self.curr_size = 0
+        curr_obs = curr_obs[:self.capacity]
+        action = action[:self.capacity]
+        reward = reward[:self.capacity]
+        done = done[:self.capacity]
+        next_obs = next_obs[:self.capacity]
+        # extra_args_exp = []
+        # for exp in extra_exps:
+        #   extra_args_exp.append(exp[:self.capacity])
+        done[-1] = True
+        num_samples = self.capacity
 
 
-        self.all_buffers[self.states_index][self.curr_size:self.curr_size+num_samples] = curr_obs
-        self.all_buffers[self.actions_index][self.curr_size:self.curr_size+num_samples] = action
-        self.all_buffers[self.reward_index][self.curr_size:self.curr_size+num_samples] = reward
-        self.all_buffers[self.dones_index][self.curr_size:self.curr_size+num_samples] = done
-        self.all_buffers[self.next_states_index][self.curr_size:self.curr_size+num_samples] = next_obs
+      elif self.__len__() + num_samples > self.capacity and not self.continous_mem:         
+        dones = np.where(self.all_buffers[self.dones_index]==True)[0]
+        relevant_index = np.where(dones > num_samples - free_space)[0][0]
+        done_index = dones[relevant_index]
 
-        self.curr_size +=num_samples
+
+        for i in range(len(self.all_buffers)):
+            self.all_buffers[i][:done_index+1] = 0
+            self.all_buffers[i] = np.roll(self.all_buffers[i], -done_index -1, axis=0)
+        
+        self.curr_size -= (done_index+1)
+
+      self.all_buffers[self.states_index][self.curr_size:self.curr_size+num_samples] = curr_obs
+      self.all_buffers[self.actions_index][self.curr_size:self.curr_size+num_samples] = action
+      self.all_buffers[self.reward_index][self.curr_size:self.curr_size+num_samples] = reward
+      self.all_buffers[self.dones_index][self.curr_size:self.curr_size+num_samples] = done
+      self.all_buffers[self.next_states_index][self.curr_size:self.curr_size+num_samples] = next_obs
+        # for i in range(len(extra_exps)):
+        #   self.all_buffers[i+self.buffer_index_offset][self.curr_size:self.curr_size+num_samples] = extra_exps[i]
+
+      self.curr_size +=num_samples
         
 
     def init_buffers(self):
@@ -102,51 +107,54 @@ class ExperienceReplay:
         reward_buffer = np.zeros((self.capacity),dtype=np.float32)
         dones_buffer = np.zeros((self.capacity), dtype=np.uint8)
         next_states_buffer = np.zeros((self.capacity, *self.obs_shape),dtype=np.float32)
+
         self.all_buffers = [states_buffer, actions_buffer, reward_buffer, dones_buffer, next_states_buffer]
+        # self.all_buffers = [states_buffer, actions_buffer, reward_buffer, dones_buffer]
+        # self.buffer_index_offset = 5
+
+        # for i in range(self.num_custom_buffers):
+        #   self.all_buffers.append(np.zeros((self.capacity),dtype=np.float32))
+          # setattr(self, f'custom_buffer_index_{i}', i)
+
         self.states_index = 0
         self.actions_index = 1
         self.reward_index = 2
         self.dones_index = 3
         self.next_states_index = 4
 
-
     def clear(self):
         self.init_buffers()
 
 
-    def get_last_episodes(self, num_episodes, orderd=False):
+    def get_last_episodes(self, num_episodes):
         """return all last episode samples, or specified num samples"""
         episode_indices = [0]
-        episode_indices.extend(np.where(self.all_buffers[self.dones_index]==True)[0])
+        episode_indices.extend(np.where(self.all_buffers[self.dones_index]==True)[0]) # last episode indx is done =1
 
         
         assert len(episode_indices) >= num_episodes , "requested more episodes then actual stored in mem"
-        num_samples = self.curr_size - episode_indices[-num_episodes -1] -1 #exclude first done indice
+        if episode_indices[-num_episodes -1] == 0: # it is a "False" done just for episode begin idx
+          num_samples = self.curr_size - episode_indices[-num_episodes -1]
+        else: # we dont want the last done in our batch
+          num_samples = self.curr_size - episode_indices[-num_episodes -1] -1 #exclude first done indice
+        return self.get_last_samples(num_samples)
 
-        return self.get_last_samples(num_samples, orderd)
 
-
-    def get_last_samples(self, num_samples=None, orderd=False):
+    def get_last_samples(self, num_samples=None):
         """return all last episode samples, or specified num samples"""
         if num_samples is None:
             "return last episode"
+
             dones = np.where(self.all_buffers[self.dones_index]==True)[0]
             if len(dones) > 1:
-                last_done = dones[-2] +1 #exclude the latest done sample
+                first_sample_idx = dones[-2] +1 #exclude the latest done sample
             else:
-                last_done = 0 # from 0 index to last done(which is also the first..)
+                first_sample_idx = 0 # from 0 index to last done(which is also the first..)
+                last_samples = [buff[first_sample_idx:self.curr_size] for buff in self.all_buffers]
 
-            if orderd:
-                last_samples = [buff[last_done+1:self.curr_size] for buff in self.all_buffers]
-            else:
-                random_indices = np.random.choice(list(range(last_done+1, self.curr_size, 1)),self.curr_size-last_done-1, replace=False)
-                last_samples = [buff[random_indices] for buff in self.all_buffers]
         else:
-            if orderd:
-                last_samples = [buff[self.curr_size-num_samples:self.curr_size] for buff in self.all_buffers]
-            else:
-                random_indices = np.random.choice(list(range(self.curr_size - num_samples, self.curr_size, 1)),num_samples, replace=False)
-                last_samples = [buff[random_indices] for buff in self.all_buffers]
+            last_samples = [buff[self.curr_size-num_samples:self.curr_size] for buff in self.all_buffers]
+
         return last_samples
         
 
@@ -183,6 +191,17 @@ def worker(env, conn, idx):
     elif (cmd == "reset"):
       next_state = env.reset() 
       conn.send(next_state) 
+    
+    elif (cmd == "clear_env"):
+      proc_running = False
+      env.clear_env()
+
+    elif (cmd == "step_generator"):
+      proc_running = False
+      env.step_generator(msg)
+
+    elif(cmd == "get_env"):
+      conn.send(env) 
 
     elif (cmd == "close"):
       proc_running = False
@@ -196,7 +215,7 @@ class ParallelEnv:
 
     self.num_envs = num_envs
     self.process = namedtuple("Process", field_names=["proc", "connection"])
-    self.env = env
+    self.env = copy.deepcopy(env)
     self.comm = []
     for idx in range(self.num_envs):
         parent_conn, worker_conn = Pipe()
@@ -224,3 +243,16 @@ class ParallelEnv:
 
   def close_procs(self):
     [ p.connection.send(("close", "")) for p in self.comm]
+
+
+# class GeneratorEnvToGymApi:
+#   def __init__(self, env):
+#     self.env = env
+
+#   def reset(self):
+#     self.env.clear()
+
+#   def step(self):
+#     self.env.step
+
+

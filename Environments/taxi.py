@@ -11,7 +11,7 @@ from gym.utils import seeding
 # from social_rl.gym_multigrid import register
 from enum import IntEnum, Enum
 from scipy.spatial.distance import cityblock
-
+from .base_curriculum_env import Base_Env
 from .environments import register_env
 
 class RGBCOLORS_MINUS_50:
@@ -58,7 +58,7 @@ ACTIONS = [SOUTH, NORTH, EAST, WEST, PICKUP, DROPOFF, REFUEL]
 #     REFUEL = REFUEL
 
 
-class SingleTaxiEnv(discrete.DiscreteEnv):
+class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
     """
     The Taxi Problem
     from "Hierarchical Reinforcement Learning with the MAXQ Value Function Decomposition"
@@ -116,8 +116,8 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
         self.random_z_dim = random_z_dim
         self.num_rows = self.size
         self.num_columns = self.size
-        self.adversary_action_dim = self.num_rows * self.num_columns
-        self.adversary_max_steps = self.n_clutter + 2
+        self.generator_action_dim = self.num_rows * self.num_columns
+        self.generator_max_steps = self.n_clutter + 2
         self.fully_observed = True
         self.n_agents = 1
         # INIT MAP PARAMS
@@ -154,21 +154,23 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
             print("OTHER MOD NOT SUPPORTED!!")
             assert n_agents == 1
 
-        self.adversary_action_space = gym.spaces.Discrete(self.adversary_action_dim)
-        self.adversary_image_obs_space = gym.spaces.Box(
+        self.generator_action_space = gym.spaces.Discrete(self.generator_action_dim)
+        self.generator_image_obs_space = gym.spaces.Box(
             low=0,
             high=1,
             shape=(self.total_row_size, self.total_col_size, 3),
             dtype='float32')
 
-        self.adversary_randomz_obs_space = gym.spaces.Box(low=0, high=1.0, shape=(random_z_dim,), dtype=np.float32)
+        self.generator_randomz_obs_space = gym.spaces.Box(low=0, high=1.0, shape=(random_z_dim,), dtype=np.float32)
 
-        self.adversary_ts_obs_space = gym.spaces.Box(
-            low=0, high=self.adversary_max_steps, shape=(1,), dtype='float32')
-        self.adversary_observation_space = gym.spaces.Dict(
-            {'image': self.adversary_image_obs_space,
-             'time_step': self.adversary_ts_obs_space,
-             'random_z': self.adversary_randomz_obs_space})
+        self.generator_ts_obs_space = gym.spaces.Box(
+            low=0, high=self.generator_max_steps, shape=(1,), dtype='float32')
+        self.generator_observation_space = gym.spaces.Dict(
+            {'image': self.generator_image_obs_space,
+             'time_step': self.generator_ts_obs_space,
+             }
+        )
+            #  'random_z': self.generator_randomz_obs_space})
 
         #NORMAL INIT##
         self.random_reset_loc = random_reset_loc
@@ -176,15 +178,36 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
         self.max_col = self.num_columns - 1
 
         self.step_order = ["choose_goal", "choose_passanger", "choose_fuel", "choose_agent"]  # else choose_walls
-        self.adversary_min_steps_for_init_map = len(self.step_order)
-        self.adversary_step_done = False
+        self.generator_min_steps_for_init_map = len(self.step_order)
+        self.generator_step_done = False
         self.clear_env()
         self.dummy_init()
         self.observation_space = gym.spaces.Dict(observation_space)
 
         
+    def get_max_episode_steps(self):
+        return self.max_steps
 
+    def get_observation_space(self):
+        return self.observation_space
+    
+    def get_generator_observation_space(self):
+        return self.generator_observation_space
 
+    def get_action_space(self):
+        return self.action_space
+
+    def get_action_dim(self):
+        return self.action_space.n
+
+    def get_generator_action_space(self):
+        return self.generator_action_space
+
+    def get_generator_action_dim(self):
+        return self.generator_action_space.n
+    def get_generator_max_steps(self):
+        return self.generator_max_steps
+    
     def init_after_adverserial(self):
         self.last_action = None
         self.passengers_locations, self.destination_location, self.fuel_station = self.get_info_from_map()
@@ -549,8 +572,8 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
     def reset_agent(self):
         """Resets the agent's start position, but leaves goal and walls."""
         # Remove the previous agents from the world
-        if self.adversary_step_count >= self.adversary_min_steps_for_init_map:
-            self.adversary_step_done = True
+        if self.generator_step_count >= self.generator_min_steps_for_init_map:
+            self.generator_step_done = True
             self.compute_shortest_path()
             self.init_after_adverserial()
         else:
@@ -575,7 +598,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
     def clear_env(self):
         """Fully resets the environment to an empty grid with no agent or goal."""
         self.n_clutter_placed = 0
-        self.adversary_step_count = 0
+        self.generator_step_count = 0
         self._str_map = self.create_empty_map(self.size)
         self.desc = np.asarray(self._str_map, dtype='c')
 
@@ -586,8 +609,8 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
         self.step_count = 0
         obs = {
             'image': image,
-            'time_step': [self.adversary_step_count],
-            'random_z': self.generate_random_z()
+            'time_step': [self.generator_step_count],
+            # 'random_z': self.generate_random_z()
         }
 
         return obs
@@ -690,8 +713,8 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
             rewards = rewards[0]
         return obs, rewards, done, {"prob": p}
 
-    def step_adversary(self, loc):
-        """The adversary gets n_clutter + 2 moves to place the goal, agent, blocks.
+    def step_generator(self, loc):
+        """The generator gets n_clutter + 2 moves to place the goal, agent, blocks.
 
         The action space is the number of possible squares in the grid. The squares
         are numbered from left to right, top to bottom.
@@ -704,9 +727,9 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
           Standard RL observation, reward (always 0), done, and info
         """
         step_order = self.step_order  # ["choose_goal","choose_passanger", "choose_fuel", , "choose_agnet"]  # else choose_walls
-        current_turn = step_order[self.adversary_step_count] if self.adversary_step_count < len(step_order) else "place_walls"
-        if loc >= self.adversary_action_dim:
-            raise ValueError('Position passed to step_adversary is outside the grid.')
+        current_turn = step_order[self.generator_step_count] if self.generator_step_count < len(step_order) else "place_walls"
+        if loc >= self.generator_action_dim:
+            raise ValueError('Position passed to step_generator is outside the grid.')
 
         # Add offset of 1 for outside walls
         row, col = self.unpack_index(loc)
@@ -734,25 +757,24 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
             self.init_taxi_row, self.init_taxi_col = [row, col]
             self.deliberate_agent_placement = 1
         # Place wall
-        elif self.adversary_step_count < self.adversary_max_steps:
+        elif self.generator_step_count < self.generator_max_steps:
             # If there is already an object there, action does nothing, also if it is on the grid bounderies
             if self.get_map_symbol(row, col, True) == ":":
                 self.put_in_map(row, col, "|", wall_zone=True)
                 self.n_clutter_placed += 1
 
-        self.adversary_step_count += 1
+        self.generator_step_count += 1
 
         # End of episode
 
-        if self.adversary_step_count >= self.adversary_max_steps:
+        if self.generator_step_count >= self.generator_max_steps:
             done = True
             self.reset_agent()
 
         image = self.get_map_image(adversarial=True)
         obs = {
             'image': image,
-            'time_step': [self.adversary_step_count],
-            'random_z': self.generate_random_z()
+            'time_step': [self.generator_step_count],
         }
 
         return obs, 0, done, {}
@@ -770,14 +792,14 @@ class SingleTaxiEnv(discrete.DiscreteEnv):
         return "".join(all_map)
 
     def __str__(self):
-        if self.adversary_step_done:
+        if self.generator_step_done:
             return self.render("ansi")
         else:
             return self.init_print_mode()
 
     def dummy_init(self):
         for i in range(13):
-            self.step_adversary(2 * i)
+            self.step_generator(2 * i)
         self.reset_agent()
 
 
@@ -803,7 +825,7 @@ register_env(SingleTaxiEnv)
 #     env = SingleTaxiEnv()
 #     # debug_print(env._str_map)
 #     for i in range(13):
-#         env.step_adversary(2 * i)
+#         env.step_generator(2 * i)
 #     # print(env.render())
 #     # debug_print(env._str_map)
 

@@ -14,7 +14,10 @@ class PPO_Agent(RL_Agent):
     #TODO SUPPORT DIFFERNET OPTIMIZERS
     def __init__(self, obs_shape, n_actions, batch_size=32,
                  max_mem_size=10000, lr=0.0001, discount_factor=0.99, num_epochs_per_update=4, num_parallel_envs=1, model=FC, rnn=False, device = 'cpu'):
-        """ppo recoomeneded is 1 parallel env"""
+        """ppo recomeneded setting is 1 parallel env"""
+        if num_parallel_envs > 1:
+            print("Warning: PPO is online algorithm and do not benefit from multiple envirnoments, please set num_parallel_envs =1, convargence issue might preset if not")
+
         super().__init__(obs_shape, max_mem_size, batch_size, num_parallel_envs, rnn, device=device) # inits 
         # self.losses = []
         self.discount_factor = discount_factor
@@ -36,17 +39,35 @@ class PPO_Agent(RL_Agent):
 
 
     def save_agent(self,f_name):
-
-        torch.save({'optimizer': self.optimizer.state_dict(),
-        'model':self.Q_network.state_dict()
-        }, f_name)
+        torch.save({'actor_optimizer': self.actor_optimizer.state_dict(),
+        'policy_nn':self.policy_nn.state_dict(),
+        'critic_optimizer': self.critic_optimizer.state_dict(),
+        'ctiric_model':self.ctiric_model.state_dict(),
+        }, f_name)    
 
 
     def load_agent(self,f_name):
         checkpoint = torch.load(f_name)
-        self.Q_network.load_state_dict(checkpoint['model'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.policy_nn.load_state_dict(checkpoint['policy_nn'])
+        self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer'])
+        self.actor_model = lambda x : Categorical(logits=F.softmax(self.policy_nn(x), dim=1))
+        self.critic_model.load_state_dict(checkpoint['critic_model'])
+        self.critic_optimizer.load_state_dict(checkpoint['critic_optimizer'])
 
+
+    def reset_rnn_hidden(self,):
+        """reset nn hidden_state"""
+        self.policy_nn.reset()
+        self.critic_model.reset()
+
+
+    # def update_rnn_indices(self, indices):
+    #     """if agent uses rnn, this callback is called in many places so please impliment it"""
+    #     self.policy_nn.update_hidden_state_indices(indices)
+    #     self.critic_model.update_hidden_state_indices(indices)
+
+    def get_last_collected_experiences(self):
+        return self._get_ppo_experiences()
 
     def train(self, env, n_episodes):
         train_episode_rewards = super().train(env, n_episodes)
@@ -56,12 +77,33 @@ class PPO_Agent(RL_Agent):
 
     def act(self, observations, num_obs=1):
         """batched observation only!"""
-        if num_obs != len(observations) and num_obs == 1:
+        len_obs = len(observations)
+        if num_obs != len_obs and num_obs == 1:
             observations = observations[np.newaxis, :]
-        elif num_obs != len(observations) and num_obs != 1:
-            raise Exception(f"number of observations do not match real observation len{num_obs}, vs {len(observations)}")
+            len_obs = 1
+            if self.rnn:
+                #seq len = 1, single state eval
+                observations = observations[np.newaxis, :]
+            
+        elif num_obs != len_obs and num_obs != 1:
+            raise Exception(f"number of observations do not match real observation len{num_obs}, vs {len_obs}")
 
-        states = torch.from_numpy(observations).to(self.device)
+        if self.rnn:
+            observations = [torch.from_numpy(x) for x in observations]
+            # if not self.eval_mode:
+            #     seq_lens = np.ones(self.num_parallel_envs)
+            #     padded_seq_batch = torch.nn.utils.rnn.pad_sequence(observations, batch_first=True)
+            # elif self.eval_mode:
+            #     # X obs of len 1
+            #     seq_lens = np.ones(len_obs)
+            #     padded_seq_batch = torch.nn.utils.rnn.pad_sequence(observations, batch_first=True)
+            seq_lens = np.ones(len_obs)
+            padded_seq_batch = torch.nn.utils.rnn.pad_sequence(observations, batch_first=True)
+            padded_seq_batch= padded_seq_batch.reshape((len_obs, 1, np.prod(observations[-1].shape)))
+            states = torch.nn.utils.rnn.pack_padded_sequence(padded_seq_batch, lengths=seq_lens, batch_first=True).to(self.device)
+        else:
+            states = torch.from_numpy(observations).to(self.device)
+
         with torch.no_grad():
             actions_dist = self.actor_model(states)
             if self.eval_mode:
@@ -80,14 +122,19 @@ class PPO_Agent(RL_Agent):
 
 
     def init_ppo_buffers(self):
-        self.logits = [[] for i in range(self.batch_size)]
-        self.values = [[] for i in range(self.batch_size)]
+        self.logits = [[] for i in range(self.num_parallel_envs)]
+        self.values = [[] for i in range(self.num_parallel_envs)]
 
 
-    def get_experiences(self, random_samples):
+    def _get_ppo_experiences(self, random_samples):
         """Current PPO only suports random_Samples = False!!"""
         assert random_samples == False, "Current PPO only suports random_Samples = False!!"
-        states, actions, rewards, dones, next_states = super().get_experiences(random_samples) 
+        states, actions, rewards, dones, next_states = self.experience.get_last_episodes(self.num_parallel_envs)
+        states = torch.tensor(states).to(self.device)
+        actions = torch.tensor(actions).to(self.device)
+        rewards = torch.tensor(rewards).to(self.device)
+        dones = torch.tensor(dones).to(self.device)
+        next_states = torch.tensor(next_states).to(self.device)
 
         # ONLY POSSIBLE SINCE RANDOM SAMPLES ARE FALSE!!!
         done_indices = np.where(dones.cpu().numpy() == True)[0]
@@ -103,26 +150,21 @@ class PPO_Agent(RL_Agent):
             first_indice = current_done_indice
 
         return states, actions, rewards, dones, next_states, values, logits
-    
 
-    def update_policy(self):
-        # assert self.num_parallel_envs == 1 and self.rnn or not self.rnn, "currently impl does not support multiple parralel envs"
-        # states, actions, rewards, dones, next_states, values, logits = self.get_rnn_exp(random_samples=False)
-        states, actions, rewards, dones, next_states, values, logits = self.get_experiences(random_samples=False)
+
+    def update_policy_reg(self):
+        states, actions, rewards, dones, next_states, values, logits = self._get_ppo_experiences(random_samples=False)
         returns = calc_returns(rewards, dones, self.discount_factor)
         advantages = calc_gaes(rewards, values, dones, self.discount_factor)
-
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
-
         self.init_ppo_buffers()
-        
 
         all_samples_len = len(states)
         entropy_coeff = 0.001
         avg_c_loss = 0
         for e in range(self.num_epochs_per_update):
             indices_perm = torch.arange(len(returns))
-            if self.rand_perm:
+            if not self.rnn:
                 #do not when using RNN
                 indices_perm = torch.randperm(len(returns))
             states = states[indices_perm]
@@ -130,7 +172,7 @@ class PPO_Agent(RL_Agent):
             returns = returns[indices_perm]
             advantages = advantages[indices_perm]
             logits = logits[indices_perm]
-
+            kl_div_bool = False
             for b in range(0, all_samples_len, self.batch_size):
                 batch_states = states[b:b+self.batch_size]
                 batched_actions = actions[b:b+self.batch_size]
@@ -159,12 +201,242 @@ class PPO_Agent(RL_Agent):
                 self.critic_optimizer.step()
 
                 if torch.abs(kl_div) > 0.01:
-                    continue
+                    kl_div_bool = True
+                    break
                 self.actor_optimizer.zero_grad()
                 actor_loss.backward()
                 # nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
                 self.actor_optimizer.step()
-
-
-
+            if kl_div_bool:
+                break
         # self.losses.append(avg_c_loss / (self.batch_size*self.num_epochs_per_update))
+
+    def update_policy_rnn(self, *exp):
+        if len(exp) == 0:
+            states, actions, rewards, dones, next_states, values, logits = self._get_ppo_experiences(random_samples=(not self.rnn))
+        else:
+            states, actions, rewards, dones, next_states = exp
+
+        # if self.num_parallel_envs == 1:
+        #     relevant_indices_list = np.arange(0, len(states), self.batch_size)        
+        obs_shape = states[-1].shape
+        returns = calc_returns(rewards, dones, self.discount_factor)
+        advantages = calc_gaes(rewards, values, dones, self.discount_factor)
+
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
+
+        self.init_ppo_buffers()
+
+        env_indices = np.zeros(self.num_parallel_envs, dtype=np.int32)
+        env_indices[0] = -1
+        done_indices = torch.where(dones == True)[0].cpu().numpy().astype(np.int32)
+        env_indices[1:] = done_indices[:-1]
+        all_lens = done_indices - env_indices
+        data_sub_indices = np.array([list(range(env_indices[i]+1,done_indices[i]+1, 1)) for i in range(len(all_lens-1))], dtype=object)
+        
+        seq_indices = np.argsort(all_lens)[::-1]
+        sorted_data_sub_indices = data_sub_indices[seq_indices]
+        sorted_data_sub_indices = np.concatenate(sorted_data_sub_indices).astype(np.int32)
+        seq_lens = all_lens[seq_indices]
+
+        unpadded_states = []
+        unpadded_next_states = []
+        curr_idx = 0
+        for d_i in done_indices:
+            unpadded_states.append(states[curr_idx:d_i+1])
+            unpadded_next_states.append(next_states[curr_idx:d_i+1])
+            curr_idx = d_i+1
+
+        # can be better soretd in same loop!!!
+        unpadded_states.sort(reverse=True,key=lambda x: x.size())
+        # unpadded_next_states.sort(reverse=True,key=lambda x: x.size())
+        sorted_actions = actions[sorted_data_sub_indices]
+        # sorted_rewards = rewards[sorted_data_sub_indices]
+        # sorted_dones = dones[sorted_data_sub_indices]
+        sorted_returns = returns[sorted_data_sub_indices]
+        sorted_advantage = advantages[sorted_data_sub_indices]
+        sorted_logits = logits[sorted_data_sub_indices]
+
+        padded_seq_batch = torch.nn.utils.rnn.pad_sequence(unpadded_states, batch_first=True)
+        # padded_next_seq_batch = torch.nn.utils.rnn.pad_sequence(unpadded_next_states, batch_first=True)
+        max_len = np.max(seq_lens)
+        padded_seq_batch= padded_seq_batch.reshape((self.num_parallel_envs, max_len, np.prod(obs_shape)))
+        # padded_next_seq_batch= padded_next_seq_batch.reshape((self.num_parallel_envs, max_len, np.prod(obs_shape)))
+        pakced_states = torch.nn.utils.rnn.pack_padded_sequence(padded_seq_batch, lengths=seq_lens, batch_first=True)        
+        # pakced_next_states = torch.nn.utils.rnn.pack_padded_sequence(padded_next_seq_batch, lengths=seq_lens, batch_first=True)      
+        
+
+        entropy_coeff = 0.001
+        avg_c_loss = 0
+        obs_shape = states[-1].shape
+
+        for e in range(self.num_epochs_per_update):
+ 
+            # for i,(sub_idx, seq_len) in enumerate(zip(relevant_indices_list, seqs_len)):
+            # normal_b_size = len(sub_idx)
+            # rnn_b_size = normal_b_size//seq_len
+            
+            # batch_states = states[sub_idx].reshape(rnn_b_size, seq_len, *obs_shape)
+            # batched_actions = actions[sub_idx]
+            # batched_next_states = next_states[sub_idx].reshape(rnn_b_size, seq_len, *obs_shape) #torch.unsqueeze(next_states[sub_idx], 1)
+            # batched_rewards = rewards[sub_idx]
+            # batched_dones = dones[sub_idx]
+            # batched_returns = returns[sub_idx]
+            # batched_advantage = advantages[sub_idx]
+            # batched_logits = logits[sub_idx]
+
+            dist = self.actor_model(pakced_states)
+            values = self.critic_model(pakced_states)
+
+            entropy = dist.entropy().mean()
+            new_log_probs = dist.log_prob(sorted_actions)                
+
+            old_log_probs = sorted_logits # from acted policy
+
+            ratio = (new_log_probs - old_log_probs).exp()
+            surr1 = ratio
+            surr2 = torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param)
+            actor_loss  = - ((torch.min(surr1, surr2) * sorted_advantage).mean()) - entropy_coeff * entropy
+            critic_loss = self.criterion(values, torch.unsqueeze(sorted_returns, 1))
+            kl_div = (old_log_probs - new_log_probs).mean()
+
+            self.critic_optimizer.zero_grad()
+            critic_loss.backward()
+            avg_c_loss  += critic_loss.item()
+            self.critic_optimizer.step()
+
+            if torch.abs(kl_div) > 0.01:
+                continue
+            self.actor_optimizer.zero_grad()
+            actor_loss.backward()
+            # nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
+            self.actor_optimizer.step()
+
+
+
+    # def update_policy_rnn(self):
+    #     states, actions, rewards, dones, next_states, values, logits = self.get_experiences(random_samples=False)
+    #     relevant_indices_list, seqs_len, rnn_masks = self.get_rnn_exp_indices()
+
+    #     # if self.num_parallel_envs == 1:
+    #     #     relevant_indices_list = np.arange(0, len(states), self.batch_size)        
+
+    #     returns = calc_returns(rewards, dones, self.discount_factor)
+    #     advantages = calc_gaes(rewards, values, dones, self.discount_factor)
+
+    #     advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
+
+    #     self.init_ppo_buffers()
+        
+
+    #     entropy_coeff = 0.001
+    #     avg_c_loss = 0
+    #     obs_shape = states[-1].shape
+
+    #     for e in range(self.num_epochs_per_update):
+ 
+    #         for i,(sub_idx, seq_len) in enumerate(zip(relevant_indices_list, seqs_len)):
+    #             normal_b_size = len(sub_idx)
+    #             rnn_b_size = normal_b_size//seq_len
+                
+    #             batch_states = states[sub_idx].reshape(rnn_b_size, seq_len, *obs_shape)
+    #             batched_actions = actions[sub_idx]
+    #             # batched_next_states = next_states[sub_idx].reshape(rnn_b_size, seq_len, *obs_shape) #torch.unsqueeze(next_states[sub_idx], 1)
+    #             # batched_rewards = rewards[sub_idx]
+    #             # batched_dones = dones[sub_idx]
+    #             self.update_rnn_indices(rnn_masks[i])
+    #             batched_returns = returns[sub_idx]
+    #             batched_advantage = advantages[sub_idx]
+    #             batched_logits = logits[sub_idx]
+
+    #             dist = self.actor_model(batch_states)
+    #             values = self.critic_model(batch_states)
+
+    #             entropy = dist.entropy().mean()
+    #             new_log_probs = dist.log_prob(batched_actions)                
+
+    #             old_log_probs = batched_logits # from acted policy
+
+    #             ratio = (new_log_probs - old_log_probs).exp()
+    #             surr1 = ratio
+    #             surr2 = torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param)
+    #             actor_loss  = - ((torch.min(surr1, surr2) * batched_advantage).mean()) - entropy_coeff * entropy
+    #             critic_loss = self.criterion(values, torch.unsqueeze(batched_returns, 1))
+    #             kl_div = (old_log_probs - new_log_probs).mean()
+
+    #             self.critic_optimizer.zero_grad()
+    #             critic_loss.backward()
+    #             avg_c_loss  += critic_loss.item()
+    #             self.critic_optimizer.step()
+
+    #             if torch.abs(kl_div) > 0.01:
+    #                 continue
+    #             self.actor_optimizer.zero_grad()
+    #             actor_loss.backward()
+    #             # nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
+    #             self.actor_optimizer.step()
+    #             self.update_rnn_indices(rnn_masks[i])
+
+
+
+
+
+# def update_policy_reg(self):
+#         # assert self.num_parallel_envs == 1 and self.rnn or not self.rnn, "currently impl does not support multiple parralel envs"
+#         # states, actions, rewards, dones, next_states, values, logits = self.get_rnn_exp(random_samples=False)
+#         states, actions, rewards, dones, next_states, values, logits = self.get_experiences(random_samples=False)
+#         returns = calc_returns(rewards, dones, self.discount_factor)
+#         advantages = calc_gaes(rewards, values, dones, self.discount_factor)
+
+#         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
+
+#         self.init_ppo_buffers()
+        
+
+#         all_samples_len = len(states)
+#         entropy_coeff = 0.001
+#         avg_c_loss = 0
+#         for e in range(self.num_epochs_per_update):
+#             indices_perm = torch.arange(len(returns))
+#             if self.rand_perm:
+#                 #do not when using RNN
+#                 indices_perm = torch.randperm(len(returns))
+#             states = states[indices_perm]
+#             actions = actions[indices_perm]
+#             returns = returns[indices_perm]
+#             advantages = advantages[indices_perm]
+#             logits = logits[indices_perm]
+
+#             for b in range(0, all_samples_len, self.batch_size):
+#                 batch_states = states[b:b+self.batch_size]
+#                 batched_actions = actions[b:b+self.batch_size]
+#                 batched_returns = returns[b:b+self.batch_size]
+#                 batched_advantage = advantages[b:b+self.batch_size]
+#                 batched_logits = logits[b:b+self.batch_size]
+
+#                 dist = self.actor_model(batch_states)
+#                 values = self.critic_model(batch_states)
+
+#                 entropy = dist.entropy().mean()
+#                 new_log_probs = dist.log_prob(batched_actions)                
+
+#                 old_log_probs = batched_logits # from acted policy
+
+#                 ratio = (new_log_probs - old_log_probs).exp()
+#                 surr1 = ratio
+#                 surr2 = torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param)
+#                 actor_loss  = - ((torch.min(surr1, surr2) * batched_advantage).mean()) - entropy_coeff * entropy
+#                 critic_loss = self.criterion(values, torch.unsqueeze(batched_returns, 1))
+#                 kl_div = (old_log_probs - new_log_probs).mean()
+
+#                 self.critic_optimizer.zero_grad()
+#                 critic_loss.backward()
+#                 avg_c_loss  += critic_loss.item()
+#                 self.critic_optimizer.step()
+
+#                 if torch.abs(kl_div) > 0.01:
+#                     continue
+#                 self.actor_optimizer.zero_grad()
+#                 actor_loss.backward()
+#                 # nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
+#                 self.actor_optimizer.step()
