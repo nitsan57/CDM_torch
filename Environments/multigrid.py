@@ -1035,12 +1035,13 @@ class MultiGridEnv(minigrid.MiniGridEnv):
         # - an image (partially observable view of the environment)
         # - the agent's direction/orientation (acting as a compass)
         # Note direction has shape (1,) for tfagents compatibility
-        obs = {
-            'image': images,
-            'direction': dirs
-        }
-        if self.fully_observed:
-            obs['position'] = positions
+        # obs = {
+        #     'image': images,
+        #     'direction': dirs
+        # }
+        # if self.fully_observed:
+        #     obs['position'] = positions
+        obs = (images.astype(np.float32) / 10)
 
         return obs
 
@@ -1108,6 +1109,16 @@ class MultiGridEnv(minigrid.MiniGridEnv):
 
         return highlight_mask
 
+    def get_image_obs(self, agent=True):
+        if agent:
+            image = self.gen_agent_obs(0)[0] / 5 #self.grid.encode().astype(np.float32)
+        else:
+            image = self.grid.encode() / 10
+        # if np.max(image) > 1:
+            # print("Warning obs > 1")
+
+        return image.astype(np.float32)
+
     def render(self,
                mode='human',
                close=False,
@@ -1135,7 +1146,7 @@ class MultiGridEnv(minigrid.MiniGridEnv):
             highlight_mask = None
 
         # Render the whole grid
-        img = self.grid.render(tile_size, highlight_mask=highlight_mask)
+        img = self.grid.render(tile_size, highlight_mask=highlight_mask) #
 
         if mode == 'human':
             self.window.show_img(img)

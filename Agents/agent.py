@@ -1,3 +1,4 @@
+from torch._C import Node
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 from .agent_utils import ExperienceReplay
@@ -29,12 +30,15 @@ class RL_Agent(ABC):
         #if return log probs, and save original user choice, since in eval mode we do not return log probs
 
 
-    # @abstractmethod
+    @abstractmethod
     def save_agent(self,):
         raise NotImplementedError
 
+    @abstractmethod
+    def get_entropy(self, obs, batch_size):
+        raise NotImplementedError
 
-    # @abstractmethod
+    @abstractmethod
     def load_agent(self,):
         raise NotImplementedError
 
@@ -49,8 +53,8 @@ class RL_Agent(ABC):
         self.eval_mode = self.EVAL
 
 
-    def train_episodial(self, env, n_episodes, disable_tqdm=False):
-        return self._train_n_iters(env, n_episodes, True, disable_tqdm=disable_tqdm)
+    def train_episodial(self, env, n_episodes, max_episode_len=None, disable_tqdm=False):
+        return self._train_n_iters(env, n_episodes, True, max_episode_len=max_episode_len, disable_tqdm=disable_tqdm)
 
 
     def train_n_steps(self, env, n_steps, max_episode_len=None, disable_tqdm=False):
@@ -73,7 +77,7 @@ class RL_Agent(ABC):
         i = 0 
         ep_number = 0
         while i < n_iters:
-            rewards_vector = self.collect_episode_obs(env, max_episode_len) #self.collect_episode_obs(env, max_episode_len)
+            rewards_vector = self.collect_episode_obs(env, max_episode_len, num_to_collect=self.num_parallel_envs)
             num_steps_collected = 0
             for r in rewards_vector:
                 train_rewards.append(np.sum(r))
@@ -99,6 +103,7 @@ class RL_Agent(ABC):
             self.update_policy()
             if self.rnn:
                 self.reset_rnn_hidden()
+
         env.close_procs()
         pbar.close()
         return train_rewards
@@ -132,6 +137,9 @@ class RL_Agent(ABC):
 
     def collect_episode_obs(self, env, max_episode_len = None, num_to_collect=None, env_funcs={"step": "step", "reset": "reset"}):
         # supports run on different env api
+        if type(env) != ParallelEnv:
+            env = ParallelEnv(env, num_to_collect)
+
         step_function = getattr(env, env_funcs["step"])
         reset_function = getattr(env, env_funcs["reset"])
 
@@ -152,10 +160,8 @@ class RL_Agent(ABC):
         dones = [[] for i in range(self.num_parallel_envs)]
 
         max_episode_steps = 0
-
         while not all(env_dones):
             relevant_indices = np.where(env_dones == False)[0].astype(np.int32)
-
             current_actions = self.act(latest_observations, self.num_parallel_envs)
             #TODO DEBUG 
             # allways use all envs to step, even some envs are done already
@@ -166,6 +172,7 @@ class RL_Agent(ABC):
                 next_observations[i].append(next_obs[i])
                 rewards[i].append(reward[i])
                 dones[i].append(done[i])
+
                 env_dones[i] = done[i]
 
                 max_episode_steps +=1
@@ -176,14 +183,13 @@ class RL_Agent(ABC):
                     done = True
                     dones[i][-1] = done
                     env_dones[i] = done
-                    continue
+                    break
 
                 observations[i].append(next_obs[i])
             latest_observations = np.array(([observations[i][-1] for i in range(self.num_parallel_envs)]))
         if self.rnn:
             self.reset_rnn_hidden()
             
-    
         observations = functools.reduce(operator.iconcat, observations, [])
         actions = functools.reduce(operator.iconcat, actions, [])
         rewards_x = functools.reduce(operator.iconcat, rewards, [])
@@ -199,6 +205,10 @@ class RL_Agent(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_last_collected_experiences(self):
+    def get_last_collected_experiences(self, number_of_episodes):
         #Mainly for paired alg
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear_exp(self):
         raise NotImplementedError

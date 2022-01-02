@@ -1,3 +1,5 @@
+from pickle import DUP
+
 from .curriculum_manager import Curriculum_Manager
 from copy import deepcopy
 import torch
@@ -8,13 +10,10 @@ from tqdm import tqdm
 import functools
 import operator
 
-
-
-class PAIRED_Curriculum_entropy(Curriculum_Manager):
+class Entropy_Curriculum(Curriculum_Manager):
     def __init__(self, abstract_env, trainee, teacher_agent, n_episodes = 100, n_iters=50000) -> None:
         save_dir = "./ext_paired_agent_weights/" + abstract_env.__class__.__name__ + "/"
         super().__init__(abstract_env, trainee, save_dir)
-        self.antagonist = deepcopy(trainee)
         self.random_z_space = 10
         
         if type(self.teacher_obs_space) != dict:
@@ -41,6 +40,8 @@ class PAIRED_Curriculum_entropy(Curriculum_Manager):
         a_env = self.abstract_env
         # if number_of_envs > 1:
             # a_env = ParallelEnv(a_env)
+        import pdb
+        pdb.set_trace()
         a_env = ParallelEnv(a_env, number_of_envs)
         if not teacher_eval_mode:
             self.teacher.set_train_mode()
@@ -56,15 +57,12 @@ class PAIRED_Curriculum_entropy(Curriculum_Manager):
         
     def save_models(self, additional_info):
         self.trainee.save_agent(f"{self.save_dir}_{additional_info}_trainee.ckpt")
-        self.antagonist.save_agent(f"{self.save_dir}_{additional_info}_antagonist.ckpt")
         self.teacher.save_agent(f"{self.save_dir}_{additional_info}_teacher.ckpt")
         
 
     def set_agents_to_train_mode(self):
         self.teacher.set_train_mode()
-        self.trainee.set_train_mode()
-        self.antagonist.set_train_mode()
-    
+        self.trainee.set_train_mode()    
 
     def get_best_env(self, env_list):
         number_states_to_sample = 20
@@ -85,63 +83,41 @@ class PAIRED_Curriculum_entropy(Curriculum_Manager):
 
     def teach(self, n_iters, n_episodes=8):
         self.set_agents_to_train_mode()
-        number_episodes_for_regret_calc = 4 # same as paired paper
+        number_episodes_for_regret_calc = 1
         self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
-        self.antagonist.set_num_parallel_env(number_episodes_for_regret_calc)
         all_mean_rewards = []
         pbar = tqdm(range(n_iters))
         number_of_envs_to_gen = 20
 
         for iter in pbar:
-            
             envs = self.create_envs(number_of_envs_to_gen, teacher_eval_mode=False)
             env = self.get_best_env(envs)
             self.write_env(env, iter)
 
             env = ParallelEnv(env, number_episodes_for_regret_calc)
-            mean_r = 0 
-            for i in range(n_episodes):
-                trainee_rewards = self.trainee.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc) #collect a single episode experience - controled in num_env_parallel in each agent
-                antagonist_rewards = self.antagonist.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc)
-                episodes_collected = len(trainee_rewards)
+            n_steps_collected = 0
+            mean_r = 0
+            trainee_rewards = self.trainee.train_episodial(env, n_episodes, disable_tqdm=True) #train n_episodes per generated_env
 
-                curr_steps_collected = np.sum([len(r) for r in trainee_rewards])
+            trainee_rewards = functools.reduce(operator.iconcat, trainee_rewards, [])
 
-                trainee_rewards = functools.reduce(operator.iconcat, trainee_rewards, [])
-                antagonist_rewards = functools.reduce(operator.iconcat, antagonist_rewards, [])
 
-                trainee_avg_r = np.mean(trainee_rewards)
-                trainee_max_r = np.max(trainee_rewards)
-                anta_avg_r = np.mean(antagonist_rewards)
-                anta_max_r = np.max(antagonist_rewards)
+            trainee_avg_r = np.mean(trainee_rewards)
+            trainee_max_r = np.max(trainee_rewards)
+            all_mean_rewards.append(trainee_avg_r)
 
-                #Change agents update... as paired paper states..
-                # # update rewards:
-                reward_buffer_index = self.trainee.experience.reward_index
-
-                #sample last experiences
-                t_exp = self.trainee.get_last_collected_experiences(number_episodes_for_regret_calc) # maybe change to 1 on ppo?
-                a_exp = self.antagonist.get_last_collected_experiences(number_episodes_for_regret_calc) # maybe change to 1 on ppo?                
-
-                t_exp[reward_buffer_index] = t_exp[reward_buffer_index] - (anta_max_r) / self.max_episode_steps
-                a_exp[reward_buffer_index] = a_exp[reward_buffer_index] - (trainee_max_r) / self.max_episode_steps
-
-                self.trainee.update_policy(*t_exp)
-                self.antagonist.update_policy(*a_exp)
-
-                # n_steps_collected += curr_steps_collected
-                mean_r +=trainee_avg_r
-            
-            all_mean_rewards.append(mean_r/n_episodes)
             desciption = f"R:{np.round(mean_r/n_episodes, 2):08}"
             pbar.set_description(desciption)
+
             # train teacher_model
-            teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
+            reward_buffer_index = self.teacher.experience.reward_index
+            #TODO
+            teacher_reward = -trainee_avg_r - 0.01* 50000
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen) 
             teacher_exp[reward_buffer_index][-1] = teacher_reward
             self.teacher.update_policy(*teacher_exp)
             self.teacher.clear_exp()
-            self.trainee.clear_exp()
             self.antagonist.clear_exp()
+            self.save_models(iter)
 
         return all_mean_rewards

@@ -5,14 +5,14 @@ import torch.optim as optim
 import numpy as np
 from Models.fc import FC
 from .agent import RL_Agent
-
+from torch.distributions import Categorical
 
 class DQN_Agent(RL_Agent):
     #TODO SUPPORT DIFFERNET OPTIMIZERS
     def __init__(self, obs_shape, n_actions, batch_size=32,
-                 max_mem_size=10000, lr=0.0001, discount_factor=0.99, exploration_epsilon=1, eps_end=0.05, eps_dec=1e-4, num_parallel_envs=None, model=FC, rnn=False, device = 'cpu'):
+                 max_mem_size=10000, lr=0.0001, discount_factor=0.99, exploration_epsilon=1, eps_end=0.05, eps_dec=1e-4, num_parallel_envs=None, model=FC, device = 'cpu'):
         # rnn = model.is_rnn()
-        super().__init__(obs_shape, max_mem_size, batch_size, num_parallel_envs, rnn, device=device) # inits 
+        super().__init__(obs_shape, max_mem_size, batch_size, num_parallel_envs, model.is_rnn, device=device) # inits 
 
         self.discount_factor = discount_factor
         self.exploration_epsilon = exploration_epsilon
@@ -35,6 +35,18 @@ class DQN_Agent(RL_Agent):
             p.requires_grad = False
         self.target_Q_model.eval()
 
+
+    def get_entropy(self, obs, batch_size):
+        if batch_size == len(obs):
+            res = self.Q_model(obs)
+        elif batch_size == 1 and len(obs) != batch_size:
+            obs = torch.unsqueeze(obs, 1)
+            res = self.Q_model(obs)
+        else:
+            assert False, "Batch size doesnt match len of the obs"
+        logits = F.log_softmax(res,1)
+        return Categorical(logits= logits).entropy().detach().cpu().numpy()
+        
 
     def save_agent(self,f_name):
 
@@ -91,6 +103,7 @@ class DQN_Agent(RL_Agent):
                 states = torch.from_numpy(observations).to(self.device)
 
             with torch.no_grad():
+
                 all_actions = self.Q_model(states)
                 all_actions = torch.squeeze(all_actions,1)
                 selected_actions = torch.argmax(all_actions, -1).detach().cpu().numpy().astype(np.int32)
@@ -242,6 +255,10 @@ class DQN_Agent(RL_Agent):
             if self.exploration_epsilon > self.eps_min else self.eps_min
 
 
-    def get_last_collected_experiences(self):
+    def get_last_collected_experiences(self, num_episodes):
         """Mainly for Paired Algorithm support"""
-        return (torch.tensor(x).to(self.device) for x in self.experience.get_last_episodes(self.num_parallel_envs))
+        return [torch.tensor(x).to(self.device) for x in self.experience.get_last_episodes(num_episodes)]
+
+    
+    def clear_exp(self):
+        self.experience.clear()

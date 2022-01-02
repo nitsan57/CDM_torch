@@ -32,8 +32,6 @@ import gym_minigrid.minigrid as minigrid
 import networkx as nx
 from networkx import grid_graph
 import numpy as np
-from numpy.lib.type_check import imag
-from torch.functional import _return_inverse
 
 from . import multigrid
 # from social_rl.gym_multigrid import register
@@ -108,11 +106,9 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
         # Adversary observations are dictionaries containing an encoding of the
         # grid, the current time step, and a randomly generated vector used to
         # condition generation (as in a GAN).
-        self.adversary_observation_space = self.adversary_image_obs_space
-        self.observation_space = self.image_obs_space
-        # gym.spaces.Dict(
-        #     {'image': self.adversary_image_obs_space,
-        #      'time_step': self.adversary_ts_obs_space,})
+        self.adversary_observation_space = gym.spaces.Dict(
+            {'image': self.adversary_image_obs_space,
+             'time_step': self.adversary_ts_obs_space,})
 
         # NetworkX graph used for computing shortest path
         self.graph = grid_graph(dim=[size - 2, size - 2])
@@ -128,7 +124,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
 
 
     def get_max_episode_steps(self,):
-        return self.max_steps
+        return self.adversary_max_steps
 
 
     def get_observation_space(self):
@@ -139,25 +135,21 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
         return self.adversary_observation_space
 
 
-    def get_generator_max_steps(self):
+    def get_generator_max_episode_steps(self):
         return self.adversary_max_steps
 
 
     def get_action_space(self):
         return self.action_space
 
-
     def get_action_dim(self):
         return self.action_space.n
-
 
     def get_generator_action_space(self):
         return self.adversary_action_space
 
-
     def get_generator_action_dim(self):
         return self.adversary_action_space.n
-
 
     def get_goal_x(self):
         if self.goal_pos is None:
@@ -169,6 +161,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
         if self.goal_pos is None:
             return -1
         return self.goal_pos[1]
+
 
 
     def reset_metrics(self):
@@ -202,12 +195,11 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
         # 'fixed_environment' is True.
         self._gen_grid(self.width, self.height)
 
-        image = self.get_image_obs(agent=False)
-        # obs = {
-        #     'image': image,
-        #     'time_step': self.adversary_step_count,
-        # }
-        obs = image
+        image = self.grid.encode()
+        obs = {
+            'image': image,
+            'time_step': self.adversary_step_count,
+        }
         AdversarialEnv.num_inited += 1
 
         return obs
@@ -257,8 +249,8 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
 
         # Return first observation
         obs = self.gen_obs()
-        return obs
 
+        return obs
 
     def sample_random_state(self, seed=None):
         """get a random state in the environment"""
@@ -352,6 +344,42 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
         elif should_choose_agent:
             self.remove_wall(x, y)  # Remove any walls that might be in this loc
 
+            # if num_inited < 30:
+            #     l1 = 2
+            #     g_x, g_y = self.goal_pos
+            #     new_cord_x, new_cord_y = max(g_x - l1, 0), max(g_y - l1, 0)
+            #     self.agent_start_pos = self.place_one_agent(0, top=(new_cord_x, new_cord_y), size=(l1 * 2, l1 * 2), rand_dir=False)
+            #     self.deliberate_agent_placement = 1
+
+            # elif num_inited < 60:
+            #     l1 = 3
+            #     g_x, g_y = self.goal_pos
+            #     new_cord_x, new_cord_y = max(g_x - l1, 0), max(g_y - l1, 0)
+            #     self.agent_start_pos = self.place_one_agent(0, top=(new_cord_x, new_cord_y), size=(l1 * 2, l1 * 2), rand_dir=False)
+            #     self.deliberate_agent_placement = 1
+
+            # elif num_inited < 90:
+            #     l1 = 4
+            #     g_x, g_y = self.goal_pos
+            #     new_cord_x, new_cord_y = max(g_x - l1, 0), max(g_y - l1, 0)
+            #     self.agent_start_pos = self.place_one_agent(0, top=(new_cord_x, new_cord_y), size=(l1 * 2, l1 * 2), rand_dir=False)
+            #     self.deliberate_agent_placement = 1
+
+            # elif num_inited < 120:
+            #     l1 = 5
+            #     g_x, g_y = self.goal_pos
+            #     new_cord_x, new_cord_y = max(g_x - l1, 0), max(g_y - l1, 0)
+            #     self.agent_start_pos = self.place_one_agent(0, top=(new_cord_x, new_cord_y), size=(l1 * 2, l1 * 2), rand_dir=False)
+            #     self.deliberate_agent_placement = 1
+
+            # elif num_inited < 150:
+            #     l1 = 6
+            #     g_x, g_y = self.goal_pos
+            #     new_cord_x, new_cord_y = max(g_x - l1, 0), max(g_y - l1, 0)
+            #     self.agent_start_pos = self.place_one_agent(0, top=(new_cord_x, new_cord_y), size=(l1 * 2, l1 * 2), rand_dir=False)
+            #     self.deliberate_agent_placement = 1
+            # self.agent_start_pos = self.place_one_agent(0, top=(new_cord_x, new_cord_y), size=(l1 * 2, l1 * 2), rand_dir=False)
+
             # Goal has already been placed here
             if self.grid.get(x, y) is not None:
                 # Place agent randomly
@@ -380,13 +408,11 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
                 self.graph.remove_node(w)
             self.compute_shortest_path()
 
-        
-        image = self.get_image_obs(agent=False)
-        # obs = {
-        #     'image': image,
-        #     'time_step': [self.adversary_step_count],
-        # }
-        obs = image
+        image = self.grid.encode()
+        obs = {
+            'image': image,
+            'time_step': [self.adversary_step_count],
+        }
 
         return obs, 0, done, {}
 
@@ -451,7 +477,11 @@ class ReparameterizedAdversarialEnv(AdversarialEnv):
 
         # Observations are dictionaries containing an encoding of the grid and the
         # agent's direction
-        self.adversary_observation_space = self.adversary_image_obs_space
+        self.adversary_observation_space = gym.spaces.Dict(
+            {'image': self.adversary_image_obs_space,
+             'time_step': self.adversary_ts_obs_space,
+             'x': self.adversary_xy_obs_space,
+             'y': self.adversary_xy_obs_space})
 
         self.adversary_max_steps = (size - 2)**2
 
@@ -462,7 +492,7 @@ class ReparameterizedAdversarialEnv(AdversarialEnv):
         obs = super().reset()
         obs['x'] = [1]
         obs['y'] = [1]
-        return obs['image']
+        return obs
 
     def select_random_grid_position(self):
         return np.array([
@@ -475,7 +505,6 @@ class ReparameterizedAdversarialEnv(AdversarialEnv):
         x = int(step % (self.width - 2)) + 1
         y = int(step / (self.width - 2)) + 1
         return x, y
-
 
     def step_generator(self, action):
         """The adversary gets a step for each available square in the grid.
@@ -557,23 +586,21 @@ class ReparameterizedAdversarialEnv(AdversarialEnv):
         else:
             x, y = self.get_xy_from_step(self.adversary_step_count)
 
-        image = self.get_image_obs(agent=False)
-
-        obs = image 
-        #{
-        #     'image': image,
-        #     'time_step': [self.adversary_step_count],
-        #     'x': [x],
-        #     'y': [y]
-        # }
+        image = self.grid.encode()
+        obs = {
+            'image': image,
+            'time_step': [self.adversary_step_count],
+            'x': [x],
+            'y': [y]
+        }
 
         return obs, 0, done, {}
 
 
 class MiniAdversarialEnv(AdversarialEnv):
 
-    def __init__(self, random_reset_loc=False):
-        super().__init__(n_clutter=7, size=6, agent_view_size=5, max_steps=50, random_reset_loc=False)
+    def __init__(self):
+        super().__init__(n_clutter=7, size=6, agent_view_size=5, max_steps=50)
 
 
 class MiniReparameterizedAdversarialEnv(ReparameterizedAdversarialEnv):
@@ -590,8 +617,8 @@ class NoisyAdversarialEnv(AdversarialEnv):
 
 class MediumAdversarialEnv(AdversarialEnv):
 
-    def __init__(self, random_reset_loc=False):
-        super().__init__(n_clutter=30, size=10, agent_view_size=5, max_steps=200, random_reset_loc=False)
+    def __init__(self):
+        super().__init__(n_clutter=30, size=10, agent_view_size=5, max_steps=200)
 
 
 class GoalLastAdversarialEnv(AdversarialEnv):

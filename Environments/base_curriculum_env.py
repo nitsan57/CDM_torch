@@ -10,6 +10,7 @@ class Base_Env(ABC):
     def get_max_episode_steps(self,):
         raise NotImplementedError
 
+    @abstractmethod
     def get_generator_max_steps(self,):
         raise NotImplementedError
 
@@ -23,22 +24,23 @@ class Base_Env(ABC):
     def get_observation_space(self):
         raise NotImplementedError
 
-
     @abstractmethod
     def get_generator_observation_space():
         raise NotImplementedError
 
-
+    @abstractmethod
     def get_action_space(self):
         raise NotImplementedError   
-
+        
+    @abstractmethod
     def get_action_dim(self):
         raise NotImplementedError   
 
-
+    @abstractmethod
     def get_generator_action_space(self):
         raise NotImplementedError
 
+    @abstractmethod
     def get_generator_action_dim(self):
         raise NotImplementedError
 

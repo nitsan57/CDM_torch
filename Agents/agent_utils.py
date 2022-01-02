@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import copy
+from Environments.base_curriculum_env import Base_Env
 
 def calc_returns(rewards, dones, discount_factor):
   """works with rewards vector which consitst of many epidsodes"""
@@ -193,12 +194,12 @@ def worker(env, conn, idx):
       conn.send(next_state) 
     
     elif (cmd == "clear_env"):
-      proc_running = False
-      env.clear_env()
+      next_state = env.clear_env() 
+      conn.send(next_state) 
 
     elif (cmd == "step_generator"):
-      proc_running = False
-      env.step_generator(msg)
+      next_state, reward, done, _ = env.step_generator(msg)
+      conn.send((next_state, reward, done, _))
 
     elif(cmd == "get_env"):
       conn.send(env) 
@@ -207,10 +208,51 @@ def worker(env, conn, idx):
       proc_running = False
       conn.close()
 
+    elif (cmd == "sample_random_state"):
+      state = env.sample_random_state()
+      conn.send(state)
+
     else:
       raise Exception("Command not implemented")
 
-class ParallelEnv:
+
+class ParallelEnv():
+  def __init__(self, env, num_envs):
+    self.num_envs = num_envs
+    self.env = env
+    if num_envs > 1:
+      self.env = ParallelEnv_m(env, num_envs)
+    else:
+      self.env = SingleEnv_m(env)
+
+  def __del__(self):
+    self.env.close_procs()
+
+  # body of destructor
+
+  def get_envs(self):
+    if self.num_envs == 1:
+      return [self.env.env]
+    else:
+      return self.env.get_envs()
+
+  def reset(self):
+    return self.env.reset()
+
+  def step(self, actions):    
+    return self.env.step(actions)
+
+  def step_generator(self, actions):
+    return self.env.step_generator(actions)
+
+  def clear_env(self):
+    return self.env.clear_env()
+
+  def close_procs(self):
+    self.env.close_procs()
+
+
+class ParallelEnv_m():
   def __init__(self, env, num_envs):
 
     self.num_envs = num_envs
@@ -223,6 +265,13 @@ class ParallelEnv:
         proc.start()
         self.comm.append(self.process(proc, parent_conn))
 
+
+  def get_envs(self):
+    [ p.connection.send(("get_env", "")) for p in self.comm] 
+    res = [ p.connection.recv() for p in self.comm]
+    return res
+
+
   def reset(self):
     [ p.connection.send(("reset", "")) for p in self.comm] 
     res = [ p.connection.recv() for p in self.comm]
@@ -231,28 +280,66 @@ class ParallelEnv:
   def step(self, actions):    
     # send actions to envs
     [ p.connection.send(("step", action)) for i, p, action in zip(range(self.num_envs),self.comm, actions)]
-    
-    
+      
     # Receive response from envs.
     res = [ p.connection.recv() for p in self.comm]
     next_states, rewards, dones, _ = zip(*res)
     rewards = np.array(rewards)
     dones = np.array(dones)
-    
     return next_states, rewards, dones, np.array(_)
+
+  def step_generator(self, actions):    
+    # send actions to envs
+    [ p.connection.send(("step_generator", action)) for i, p, action in zip(range(self.num_envs),self.comm, actions)]
+      
+    # Receive response from envs.
+    res = [ p.connection.recv() for p in self.comm]
+    next_states, rewards, dones, _ = zip(*res)
+    rewards = np.array(rewards)
+    dones = np.array(dones)
+    return next_states, rewards, dones, np.array(_)
+
+  def clear_env(self):
+    [ p.connection.send(("clear_env", "")) for p in self.comm] 
+    res = [ p.connection.recv() for p in self.comm]
+    return res
+  
+  def sample_random_state(self):
+    [ p.connection.send(("sample_random_state", "")) for p in self.comm] 
+    res = [ p.connection.recv() for p in self.comm]
+    return
 
   def close_procs(self):
     [ p.connection.send(("close", "")) for p in self.comm]
 
 
-# class GeneratorEnvToGymApi:
-#   def __init__(self, env):
-#     self.env = env
-
-#   def reset(self):
-#     self.env.clear()
-
-#   def step(self):
-#     self.env.step
+class SingleEnv_m():
+  def __init__(self, env):
+    self.env = env
 
 
+  def reset(self):
+    return [self.env.reset()]
+
+  def step(self, actions):
+    next_states, rewards, dones, _ = self.env.step(actions)
+    next_states = next_states[np.newaxis, :]
+    rewards = np.array(rewards).reshape(1, 1)
+    dones = np.array(dones).reshape(1, 1)
+    return next_states, rewards, dones, _
+
+  def step_generator(self, actions):
+    next_states, rewards, dones, _ = self.env.step_generator(actions)
+    next_states = next_states[np.newaxis, :]
+    rewards = np.array(rewards).reshape(1, 1)
+    dones = np.array(dones).reshape(1, 1)
+    return next_states, rewards, dones, _
+
+  def clear_env(self):
+    return [self.env.clear_env()]
+
+  def sample_random_state(self):
+    return [self.env.sample_random_state()]
+
+  def close_procs(self):
+      pass

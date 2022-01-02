@@ -146,8 +146,8 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
             # self.fuel_space = gym.spaces.Box(
             #     low=0, high=MAX_FUEL, shape=(self.n_agents,), dtype='float32')
 
-            observation_space = self.image_obs_space
-            self.observation_space = observation_space #gym.spaces.Dict(observation_space)
+            observation_space = {'image': self.image_obs_space}
+            self.observation_space = gym.spaces.Dict(observation_space)
 
         else:
             print("OTHER MOD NOT SUPPORTED!!")
@@ -163,12 +163,11 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
 
         self.generator_ts_obs_space = gym.spaces.Box(
             low=0, high=self.generator_max_steps, shape=(1,), dtype='float32')
-        self.generator_observation_space = self.generator_image_obs_space
-        # gym.spaces.Dict(
-            # {'image': self.generator_image_obs_space,
-            #  'time_step': self.generator_ts_obs_space,
-            #  }
-        # )
+        self.generator_observation_space = gym.spaces.Dict(
+            {'image': self.generator_image_obs_space,
+             'time_step': self.generator_ts_obs_space,
+             }
+        )
 
         #NORMAL INIT##
         self.random_reset_loc = random_reset_loc
@@ -180,7 +179,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         self.generator_step_done = False
         self.clear_env()
         self.dummy_init()
-        self.observation_space = observation_space #gym.spaces.Dict(observation_space)
+        self.observation_space = gym.spaces.Dict(observation_space)
 
         
     def get_max_episode_steps(self):
@@ -290,7 +289,6 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
 
         self.s = self.init_s
         discrete.DiscreteEnv.__init__(self, self.num_states, self.num_actions, self.P, self.initial_state_distrib)
-        self.observation_space = self.image_obs_space
 
     def create_empty_map(self, size):
         domain_map = []
@@ -604,11 +602,12 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
 
         image = self.get_map_image(adversarial=True)
         self.step_count = 0
-        # obs = {
-        #     'image': image,
-        #     'time_step': self.generator_step_count,
-        # }
-        obs = image
+        obs = {
+            'image': image,
+            'time_step': self.generator_step_count,
+
+        }
+
         return obs
 
     # def reset(self):
@@ -677,12 +676,11 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         if not self.minigrid_mode:
             agent_image = [agent_image]
 
-        # obs = {
-            # 'image': agent_image,
+        obs = {
+            'image': agent_image,
             # 'fuel': fuel
-        # }
-        obs = image
-        return obs 
+        }
+        return obs['image']
 
     def step(self, actions):
         action_types = [np.int ,np.int32, np.int64]
@@ -770,11 +768,11 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
             self.reset_agent()
 
         image = self.get_map_image(adversarial=True)
-        # obs = {
-        #     'image': image,
-        #     'time_step': self.generator_step_count,
-        # }
-        obs = image
+        obs = {
+            'image': image,
+            'time_step': self.generator_step_count,
+        }
+
         return obs, 0, done, {}
 
     def init_print_mode(self):

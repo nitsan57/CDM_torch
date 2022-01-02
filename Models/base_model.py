@@ -4,10 +4,13 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 class AbstractModel(torch.nn.Module, ABC):
+    is_rnn=False
+
     def __init__(self, input_shape, out_shape):
         super().__init__()
         self.input_shape = input_shape
         self.out_shape = np.array(out_shape)
+        
         if len(self.out_shape.shape) == 0:
             self.out_shape = self.out_shape.reshape((1,))
 
