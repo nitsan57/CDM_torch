@@ -18,7 +18,7 @@ class Curriculum_Manager(ABC):
         self.device = self.trainee.device
         self.save_agent_iters = 100
         if not os.path.isdir(save_dir):
-            os.makedirs(save_dir)
+            os.makedirs(os.path.join(save_dir, "images"))
         self.save_dir = save_dir
         self.verbose=False
 
@@ -38,6 +38,10 @@ class Curriculum_Manager(ABC):
 
     @abstractmethod
     def save_models(self, addional_info):
+        raise NotImplementedError
+    
+    @abstractmethod
+    def load_models(self, *path_dict):
         raise NotImplementedError
     
 

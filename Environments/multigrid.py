@@ -1108,6 +1108,9 @@ class MultiGridEnv(minigrid.MiniGridEnv):
                 highlight_mask[abs_i, abs_j] = True
 
         return highlight_mask
+    
+    def get_observation(self, agent=True):
+        return self.get_image_obs(agent)
 
     def get_image_obs(self, agent=True):
         if agent:

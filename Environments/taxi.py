@@ -629,7 +629,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         # NOT ENOUGH
 
 
-    def get_observation(self) -> np.array:
+    def get_observation(self, agent=True) -> np.array:
         """
         Takes only the observation of the specified agent.
         Args:
@@ -640,6 +640,8 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         Returns: observation of the specified agent (state wise)
 
         """
+        if agent == False:
+            return self.get_map_image(adversarial=True)
 
         image = self.get_map_image()
         agent_image = np.copy(image)

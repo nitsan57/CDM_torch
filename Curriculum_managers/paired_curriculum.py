@@ -10,30 +10,20 @@ import operator
 
 
 class PAIRED_Curriculum(Curriculum_Manager):
-    def __init__(self, abstract_env, trainee, teacher_agent, n_episodes = 100, n_iters=50000) -> None:
-        save_dir = "./paired_agent_weights/" + abstract_env.__class__.__name__ + "/"
+    def __init__(self, abstract_env, trainee, teacher_agent, save_dir=None) -> None:
+        if save_dir is None:
+            save_dir = "./results/paired_agent_weights/" + abstract_env.__class__.__name__ + "/"
         super().__init__(abstract_env, trainee, save_dir)
         self.antagonist = deepcopy(trainee)
-        self.random_z_space = 10
-        
-        if type(self.teacher_obs_space) != dict:
-            self.teacher_obs_space = dict()
-            self.teacher_obs_space['data'] = abstract_env.get_observation_space()
-        self.teacher_obs_space['random_z'] = self.random_z_space
+        self.random_z_space = (10,)
         self.teacher = teacher_agent
+        self.teacher.add_to_obs_shape({'random_z': self.random_z_space})
         self.max_episode_steps = abstract_env.get_max_episode_steps()
-
         
-    def get_next_env_block(self, obs):
-        random_z  = torch.rand(self.random_z_space, device=self.device)
-        obs['random_z'] = random_z
-        # or act
-        teacher_action = self.teacher.act(obs)
-        return teacher_action
-
 
     def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
     # obs = self.abstract_env.clear_env()
+        assert number_of_envs == 1 , "current more is not supported"
         self.teacher.set_num_parallel_env(number_of_envs)
         if teacher_eval_mode:
             self.teacher.set_eval_mode()
@@ -41,13 +31,16 @@ class PAIRED_Curriculum(Curriculum_Manager):
         a_env = ParallelEnv(a_env, number_of_envs)
         if not teacher_eval_mode:
             self.teacher.set_train_mode()
-            self.teacher.collect_episode_obs(a_env, max_episode_len=self.teacher_max_steps, env_funcs={"step":"step_generator", "reset":"clear_env"})
+            random_z  = np.random.rand(self.random_z_space[0])
+            additional_const_features = {'random_z':  random_z}
+            self.teacher.collect_episode_obs(a_env, max_episode_len=self.teacher_max_steps, env_funcs={"step":"step_generator", "reset":"clear_env"}, additional_const_features=additional_const_features)
         else:
             for i in range(self.teacher_max_steps):
                 obs = a_env.clear_env()
                 a = self.teacher.act(obs)
                 a_env.step_generator(a)
         # normal gym env again
+        self.abstract_env = a_env.get_envs()[0]
         return a_env.get_envs()
 
         
@@ -55,7 +48,13 @@ class PAIRED_Curriculum(Curriculum_Manager):
         self.trainee.save_agent(f"{self.save_dir}_{additional_info}_trainee.ckpt")
         self.antagonist.save_agent(f"{self.save_dir}_{additional_info}_antagonist.ckpt")
         self.teacher.save_agent(f"{self.save_dir}_{additional_info}_teacher.ckpt")
-        
+    
+    
+    def load_models(self, path_dict):
+        self.trainee.load_agent(path_dict['trainee'])
+        self.antagonist.load_agent(path_dict['antagonist'])
+        self.teacher.load_agent(path_dict['teacher'])
+        return {'trainee': self.trainee, 'antagonist': self.antagonist}
 
     def set_agents_to_train_mode(self):
         self.teacher.set_train_mode()
@@ -83,7 +82,6 @@ class PAIRED_Curriculum(Curriculum_Manager):
             for i in range(n_episodes):
                 trainee_rewards = self.trainee.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc) #collect a single episode experience - controled in num_env_parallel in each agent
                 antagonist_rewards = self.antagonist.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc)
-                episodes_collected = len(trainee_rewards)
 
                 curr_steps_collected = np.sum([len(r) for r in trainee_rewards])
 
@@ -116,8 +114,12 @@ class PAIRED_Curriculum(Curriculum_Manager):
             desciption = f"R:{np.round(mean_r/n_episodes, 2):08}"
             pbar.set_description(desciption)
             # train teacher_model
-            teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
-            teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen) 
+            if anta_max_r > trainee_max_r:
+                teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
+            else:
+                teacher_reward = (trainee_avg_r / self.max_episode_steps)- anta_avg_r
+
+            teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             teacher_exp[reward_buffer_index][-1] = teacher_reward
             self.teacher.update_policy(*teacher_exp)
             self.teacher.clear_exp()

@@ -12,6 +12,11 @@ class Base_Env(ABC):
 
     @abstractmethod
     def get_generator_max_steps(self,):
+
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_observation(self, agent=True):
         raise NotImplementedError
 
 
