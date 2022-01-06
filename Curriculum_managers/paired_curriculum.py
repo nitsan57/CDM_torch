@@ -12,14 +12,15 @@ import operator
 class PAIRED_Curriculum(Curriculum_Manager):
     def __init__(self, abstract_env, trainee, teacher_agent, save_dir=None) -> None:
         if save_dir is None:
-            save_dir = "./results/paired_agent_weights/" + abstract_env.__class__.__name__ + "/"
-        super().__init__(abstract_env, trainee, save_dir)
-        self.antagonist = deepcopy(trainee)
+            save_dir = "./results/PAIRED_Curriculum/" + abstract_env.__class__.__name__ + "/"
+
         self.random_z_space = (10,)
         self.teacher = teacher_agent
         self.teacher.add_to_obs_shape({'random_z': self.random_z_space})
-        self.max_episode_steps = abstract_env.get_max_episode_steps()
+        self.antagonist = deepcopy(trainee)
+        super().__init__(abstract_env, trainee, save_dir)
         
+            
 
     def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
     # obs = self.abstract_env.clear_env()
@@ -44,16 +45,20 @@ class PAIRED_Curriculum(Curriculum_Manager):
         return a_env.get_envs()
 
         
-    def save_models(self, additional_info):
-        self.trainee.save_agent(f"{self.save_dir}_{additional_info}_trainee.ckpt")
-        self.antagonist.save_agent(f"{self.save_dir}_{additional_info}_antagonist.ckpt")
-        self.teacher.save_agent(f"{self.save_dir}_{additional_info}_teacher.ckpt")
+    def save_models(self, num_iter):
+        self.trainee.save_agent(f"{self.save_dir}_{num_iter}_trainee.ckpt")
+        self.antagonist.save_agent(f"{self.save_dir}_{num_iter}_antagonist.ckpt")
+        self.teacher.save_agent(f"{self.save_dir}_{num_iter}_teacher.ckpt")
     
     
-    def load_models(self, path_dict):
-        self.trainee.load_agent(path_dict['trainee'])
-        self.antagonist.load_agent(path_dict['antagonist'])
-        self.teacher.load_agent(path_dict['teacher'])
+    def load_models(self, num_iter):
+        num_iter  = int(num_iter / self.near_save_coeff) * self.near_save_coeff
+        a_path = f'{self.save_dir}_{num_iter}_trainee.ckpt'
+        anta_path = f'{self.save_dir}_{num_iter}_antagonist.ckpt'
+        t_path = f'{self.save_dir}_{num_iter}_teacher.ckpt'
+        self.trainee.load_agent(a_path)
+        self.antagonist.load_agent(anta_path)
+        self.teacher.load_agent(t_path)
         return {'trainee': self.trainee, 'antagonist': self.antagonist}
 
     def set_agents_to_train_mode(self):
@@ -125,8 +130,10 @@ class PAIRED_Curriculum(Curriculum_Manager):
             self.teacher.clear_exp()
             self.trainee.clear_exp()
             self.antagonist.clear_exp()
+            self.curr_iter +=1
             if iter % self.save_agent_iters == self.save_agent_iters - 1:
                 self.save_models(iter)
+                self.save_meta_data()
 
         return all_mean_rewards
         

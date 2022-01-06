@@ -2,9 +2,8 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 import os
 import cv2 
-
-from numpy.lib.npyio import save
-
+import os
+import pickle
 
 class Curriculum_Manager(ABC):
 
@@ -15,12 +14,36 @@ class Curriculum_Manager(ABC):
         self.teacher_obs_space = abstract_env.get_generator_observation_space()
         self.teacher_action_dim = abstract_env.get_generator_action_dim()
         self.teacher_max_steps = abstract_env.get_generator_max_steps()
+        self.max_episode_steps = abstract_env.get_max_episode_steps()
+
         self.device = self.trainee.device
         self.save_agent_iters = 100
         if not os.path.isdir(save_dir):
             os.makedirs(os.path.join(save_dir, "images"))
         self.save_dir = save_dir
         self.verbose=False
+        self.meta_data_file = os.path.join(self.save_dir, 'meta_data.pkl')
+        self.curr_iter = 0
+        self.near_save_coeff = self.save_agent_iters - 1
+        if os.path.isfile(self.meta_data_file):
+            print(f'loading metadatafrom {self.meta_data_file}')
+            self.load_meta_data()
+            num_iter  = int(self.curr_iter / self.near_save_coeff) * self.near_save_coeff
+            print(f'models models from last iter: {num_iter}')
+            self.load_models(self.curr_iter)
+            
+
+                     
+    def save_meta_data(self):
+        file = open(self.meta_data_file, 'wb')
+        pickle.dump({'curr_iter': self.curr_iter}, file)
+        file.close()
+
+    def load_meta_data(self):
+        file = open(self.meta_data_file, 'rb')
+        meta_data = pickle.load(file)
+        file.close()
+        self.curr_iter = meta_data['curr_iter']
 
     def set_verbose(self, verbose : bool):
         self.verbose = verbose
@@ -37,7 +60,7 @@ class Curriculum_Manager(ABC):
 
 
     @abstractmethod
-    def save_models(self, addional_info):
+    def save_models(self, num_iter):
         raise NotImplementedError
     
     @abstractmethod

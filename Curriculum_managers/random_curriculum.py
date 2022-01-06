@@ -21,18 +21,21 @@ class Random_Curriculum(Curriculum_Manager):
 
     def __init__(self, abstract_env, trainee, save_dir=None) -> None:
         if save_dir is None:
-            save_dir = "./results/random_agent_weights/" + abstract_env.__class__.__name__ + "/"
+            save_dir = "./results/Random_Curriculum/" + abstract_env.__class__.__name__ + "/"
         
         super().__init__(abstract_env, trainee, save_dir)
         self.trainee = trainee
         self.max_episode_steps = abstract_env.get_max_episode_steps()
 
 
-    def save_models(self, addional_info):
-        self.trainee.save_agent(f'{self.save_dir}/_{addional_info}_trainee.ckpt')
+    def save_models(self, num_iter):
+        self.trainee.save_agent(f'{self.save_dir}/_{num_iter}_trainee.ckpt')
+
     
-    def load_models(self, path_dict):
-        self.trainee.load_agent(path_dict['trainee'])
+    def load_models(self, num_iter):
+        num_iter  = int(num_iter / self.near_save_coeff) * self.near_save_coeff
+        path = f'{self.save_dir}/_{num_iter}_trainee.ckpt'
+        self.trainee.load_agent(path)
         return {'trainee': self.trainee}
 
     def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
@@ -62,7 +65,10 @@ class Random_Curriculum(Curriculum_Manager):
             all_mean_rewards.append(r_mean)
             desciption = f"R:{np.round(np.mean(all_mean_rewards[-20:]), 2):08}"
             pbar.set_description(desciption)
+            self.curr_iter +=1
             if i % self.save_agent_iters == self.save_agent_iters - 1:
                 self.save_models(i)
+                self.save_meta_data()
+                
         self.trainee.close_env_procs()
         return all_mean_rewards
