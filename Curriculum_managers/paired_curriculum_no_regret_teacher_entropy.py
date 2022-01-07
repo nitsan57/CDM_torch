@@ -132,7 +132,7 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
             self.trainee.clear_exp()
             self.antagonist.clear_exp()
             if itr % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts()
+                self.save_ckpts(itr)
             self.curr_iter = itr
 
         self.trainee.close_env_procs()
