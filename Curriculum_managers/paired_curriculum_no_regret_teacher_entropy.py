@@ -43,7 +43,6 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
         if not teacher_eval_mode:
             self.teacher.set_train_mode()
             random_z  = np.random.rand(self.random_z_dim[0])
-
             entropy = self.trainee.get_stored_entropy()
             entropy = functools.reduce(operator.iconcat, entropy, [])
             if entropy == []:
@@ -90,7 +89,7 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
     def teach(self, n_iters, n_episodes=8):
         self.set_agents_to_train_mode()
         all_mean_rewards = []
-        pbar = tqdm(range(n_iters))
+        pbar = tqdm(range(self.curr_iter, n_iters))
         number_of_envs_to_gen = 1
         num_last_samples = None
         self.trainee.set_store_entropy(True)
@@ -138,5 +137,7 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
                 self.save_models(iter)
                 self.save_meta_data()
 
+        self.trainee.close_env_procs()
+        self.antagonist.close_env_procs()
         return all_mean_rewards
         

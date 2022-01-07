@@ -73,7 +73,7 @@ class PAIRED_Curriculum(Curriculum_Manager):
         self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
         self.antagonist.set_num_parallel_env(number_episodes_for_regret_calc)
         all_mean_rewards = []
-        pbar = tqdm(range(n_iters))
+        pbar = tqdm(range(self.curr_iter, n_iters))
         number_of_envs_to_gen = 1
 
         for iter in pbar:
@@ -135,5 +135,7 @@ class PAIRED_Curriculum(Curriculum_Manager):
                 self.save_models(iter)
                 self.save_meta_data()
 
+        self.trainee.close_env_procs()
+        self.antagonist.close_env_procs()
         return all_mean_rewards
         

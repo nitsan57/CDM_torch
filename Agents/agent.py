@@ -99,6 +99,7 @@ class RL_Agent(ABC):
     def set_eval_mode(self):
         self.reset_rnn_hidden()
         self.eval_mode = self.EVAL
+        self.set_store_entropy(False)
 
     def train_episodial(self, env, n_episodes, max_episode_len=None, disable_tqdm=False, additional_const_features={}):
         old_parallel_envs = self.num_parallel_envs

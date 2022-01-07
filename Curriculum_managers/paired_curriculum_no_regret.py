@@ -76,7 +76,7 @@ class PAIRED_Curriculum_no_regret(Curriculum_Manager):
     def teach(self, n_iters, n_episodes=8):
         self.set_agents_to_train_mode()
         all_mean_rewards = []
-        pbar = tqdm(range(n_iters))
+        pbar = tqdm(range(self.curr_iter, n_iters))
         number_of_envs_to_gen = 1
 
         for iter in pbar:
@@ -118,5 +118,7 @@ class PAIRED_Curriculum_no_regret(Curriculum_Manager):
                 self.save_models(iter)
                 self.save_meta_data()
 
+        self.trainee.close_env_procs()
+        self.antagonist.close_env_procs()
         return all_mean_rewards
         
