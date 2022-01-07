@@ -3,20 +3,12 @@ from Environments.environments import all_envs, get_all_avail_envs
 from Models import fc, rnn
 from Agents.dqn_agent import DQN_Agent
 from Agents.ppo_agent import PPO_Agent
-
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-import torch
-from tqdm import tqdm
 import utils
-import gym
 from Curriculum_managers.random_curriculum import Random_Curriculum
 from Curriculum_managers.paired_curriculum import PAIRED_Curriculum
 # from Curriculum_managers.paired_curriculum_extented import  PAIRED_Curriculum_entropy
 from Curriculum_managers.paired_curriculum_no_regret import  PAIRED_Curriculum_no_regret
 from Curriculum_managers.paired_curriculum_no_regret_teacher_entropy import  PAIRED_Curriculum_no_regret_entropy
-import plotly.express as px
 import argparse
 
 def get_env(env_name):
@@ -30,9 +22,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--env_name", help=f"env_to_train - {get_all_avail_envs()}")
 parser.add_argument("--method", help="the train method - random, paired, paired_entropy, paired_no_reg")
 parser.add_argument("--iters", help="num_of_iters", type=int)
-
-
-# def create_meta_data():
 
 
 def main(args):

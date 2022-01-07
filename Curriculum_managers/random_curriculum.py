@@ -65,10 +65,10 @@ class Random_Curriculum(Curriculum_Manager):
             all_mean_rewards.append(r_mean)
             desciption = f"R:{np.round(np.mean(all_mean_rewards[-20:]), 2):08}"
             pbar.set_description(desciption)
-            self.curr_iter +=1
-            if i % self.save_agent_iters == self.save_agent_iters - 1:
+            if i % self.save_agent_iters == self.near_save_coeff:
                 self.save_models(i)
                 self.save_meta_data()
+            self.curr_iter = i
                 
         self.trainee.close_env_procs()
         return all_mean_rewards

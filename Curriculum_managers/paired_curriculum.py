@@ -76,11 +76,11 @@ class PAIRED_Curriculum(Curriculum_Manager):
         pbar = tqdm(range(self.curr_iter, n_iters))
         number_of_envs_to_gen = 1
 
-        for iter in pbar:
+        for itr in pbar:
             envs = self.create_envs(number_of_envs_to_gen, teacher_eval_mode=False)
             # in paired we create single env
             env = envs[0]
-            self.write_env(env, iter)
+            self.write_env(env, itr)
             env = ParallelEnv(env, number_episodes_for_regret_calc)
             n_steps_collected = 0
             mean_r = 0
@@ -130,10 +130,10 @@ class PAIRED_Curriculum(Curriculum_Manager):
             self.teacher.clear_exp()
             self.trainee.clear_exp()
             self.antagonist.clear_exp()
-            self.curr_iter +=1
-            if iter % self.save_agent_iters == self.save_agent_iters - 1:
-                self.save_models(iter)
-                self.save_meta_data()
+            
+            if itr % self.save_agent_iters == self.near_save_coeff:
+                self.save_ckpts()
+            self.curr_iter = itr
 
         self.trainee.close_env_procs()
         self.antagonist.close_env_procs()

@@ -93,11 +93,11 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
         number_of_envs_to_gen = 1
         num_last_samples = None
         self.trainee.set_store_entropy(True)
-        for iter in pbar:
+        for itr in pbar:
             envs = self.create_envs(number_of_envs_to_gen, teacher_eval_mode=False)
             # in paired we create single env
             env = envs[0]
-            self.write_env(env, iter)
+            self.write_env(env, itr)
             # n_steps_collected = 0
             mean_r = 0
             num_last_samples = 0
@@ -132,10 +132,9 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
             self.teacher.clear_exp()
             self.trainee.clear_exp()
             self.antagonist.clear_exp()
-            self.curr_iter +=1
-            if iter % self.save_agent_iters == self.save_agent_iters - 1:
-                self.save_models(iter)
-                self.save_meta_data()
+            if itr % self.save_agent_iters == self.near_save_coeff:
+                self.save_ckpts()
+            self.curr_iter = itr
 
         self.trainee.close_env_procs()
         self.antagonist.close_env_procs()
