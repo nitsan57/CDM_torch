@@ -34,7 +34,7 @@ def main(args):
     gen_obs_shape = env.get_generator_observation_space().shape
     gen_action_dim = env.get_generator_action_space().n
 
-    p_agent = DQN_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, exploration_epsilon=0.8, eps_dec=0, lr=0.001, model=rnn.RNN)
+    p_agent = DQN_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, exploration_epsilon=0.3, eps_dec=0, lr=0.001, model=rnn.RNN)
     teacher_agent = DQN_Agent(gen_obs_shape, gen_action_dim, device=device, batch_size=64, max_mem_size=10**5, exploration_epsilon=1, eps_dec=0.0001, lr=0.001, model=rnn.RNN)
     
 
@@ -48,8 +48,6 @@ def main(args):
         teacher = PAIRED_Curriculum_no_regret(env, teacher_agent=teacher_agent ,trainee=p_agent)
 
     p_rewards = teacher.teach(n_iters=args.iters, n_episodes=8)
-
-    
 
 
 if __name__ == "__main__":
