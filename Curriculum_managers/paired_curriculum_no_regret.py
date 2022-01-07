@@ -58,7 +58,6 @@ class PAIRED_Curriculum_no_regret(Curriculum_Manager):
     
     
     def load_models(self, num_iter):
-        num_iter  = int(num_iter / self.near_save_coeff) * self.near_save_coeff
         a_path = f'{self.save_dir}_{num_iter}_trainee.ckpt'
         anta_path = f'{self.save_dir}_{num_iter}_antagonist.ckpt'
         t_path = f'{self.save_dir}_{num_iter}_teacher.ckpt'

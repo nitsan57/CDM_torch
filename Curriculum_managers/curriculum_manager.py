@@ -28,8 +28,7 @@ class Curriculum_Manager(ABC):
         if os.path.isfile(self.meta_data_file):
             print(f'loading metadatafrom {self.meta_data_file}')
             self.load_meta_data()
-            num_iter  = int(self.curr_iter / self.near_save_coeff) * self.near_save_coeff
-            print(f'models models from last iter: {num_iter}')
+            print(f'loading models from last iter: {self.curr_iter}')
             self.load_models(self.curr_iter)
             
 
