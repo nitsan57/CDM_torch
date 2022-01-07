@@ -53,7 +53,7 @@ class Random_Curriculum(Curriculum_Manager):
         return [a_env]
 
     def teach(self, n_iters, n_episodes=1):
-        pbar = tqdm(range(n_iters))
+        pbar = tqdm(range(self.curr_iter, n_iters))
         all_mean_rewards = []
         for i in pbar:
             # create single rand env
