@@ -34,11 +34,11 @@ class Curriculum_Manager(ABC):
 
     def save_ckpts(self, i):
         self.save_models(i)
-        self.save_meta_data()
+        self.save_meta_data(i)
 
-    def save_meta_data(self):
+    def save_meta_data(self, i):
         file = open(self.meta_data_file, 'wb')
-        pickle.dump({'curr_iter': self.curr_iter}, file)
+        pickle.dump({'curr_iter': i}, file)
         file.close()
 
     def load_meta_data(self):

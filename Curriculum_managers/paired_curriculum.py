@@ -130,9 +130,10 @@ class PAIRED_Curriculum(Curriculum_Manager):
             self.trainee.clear_exp()
             self.antagonist.clear_exp()
             
+            self.curr_iter = itr
             if itr % self.save_agent_iters == self.near_save_coeff:
                 self.save_ckpts(itr)
-            self.curr_iter = itr
+            
 
         self.trainee.close_env_procs()
         self.antagonist.close_env_procs()

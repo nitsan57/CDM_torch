@@ -1,3 +1,4 @@
+from cv2 import imshow
 import gym
 from time import sleep
 from collections import namedtuple
@@ -57,6 +58,7 @@ class ObsShapeWraper(dict):
 
 class ObsWraper:
     def __init__(self, data=None, keep_dims=False, tensors=False):
+        self.dtype=None
         if data is None:
             return self._init_from_none_()
         if type(data) == list or type(data) == tuple:
@@ -76,8 +78,10 @@ class ObsWraper:
                 self.len = 0
                 for k, v in to_add.items():
                     if tensors:
+                        self.dtype=torch.tensor
                         self.data[k] = v
                     else:
+                        self.dtype=np.array
                         self.data[k] = np.array(v)
                     len_v = len(v)
                     if self.len == 0:
@@ -142,16 +146,31 @@ class ObsWraper:
 
 
     def __getitem__(self, key):
+        if self.dtype == torch.tensor:
+            return self.slice_tensors(key)
         if type(key) is str:
             return self.data[key]
         temp_dict = {}
-        for k, v in self.data.items():
 
+        for k, v in self.data.items():
             if np.issubdtype(type(key), np.integer):
                 temp_dict[k] = np.array([v.__getitem__(key)])
             else:
                 temp_dict[k] = np.array(v.__getitem__(key))
         return ObsWraper(temp_dict)
+
+    
+    def slice_tensors(self, key):
+        if type(key) is str:
+            return self.data[key]
+        temp_dict = {}
+        
+        for k, v in self.data.items():
+            if np.issubdtype(type(key), np.integer):
+                temp_dict[k] = v.__getitem__(key).clone().detach().requires_grad_(True).unsqueeze() 
+            else:
+                temp_dict[k] = v.__getitem__(key).clone().detach().requires_grad_(True)
+        return ObsWraper(temp_dict, tensors=True)
 
 
     def keys(self):

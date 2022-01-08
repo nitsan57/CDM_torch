@@ -26,7 +26,6 @@ class RNN(AbstractModel):
         device = x[temp_k].data.get_device()
 
         concat_tensor = []
-        idx = 0
         for k in x:
             layer = self.l1[k]
             layer.flatten_parameters()
@@ -42,7 +41,6 @@ class RNN(AbstractModel):
                 last_idx = curr_idx
 
             concat_tensor.append(relevant_flatten_out)
-            idx+=self.hidden_dim
 
         concat_tensor = torch.cat(concat_tensor, 1)
         out = self.concat_layer(concat_tensor)

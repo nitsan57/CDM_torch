@@ -44,50 +44,6 @@ class DQN_Agent(RL_Agent):
         if self.rnn:
             return self.get_entropy_rnn(obs, batch_size, seq_lens=None)
         return self.get_entropy0_reg(obs, batch_size, seq_lens=None)
-
-
-
-    # def get_entropy_reg(self, obs, batch_size, seq_lens=None):
-    #     assert seq_lens is None, "currently not supported"
-    #     if batch_size == 1 and len(obs) != batch_size:
-    #         obs = torch.unsqueeze(obs, 1)
-    #     elif batch_size != len(obs):
-    #         assert False, "Batch size doesnt match len of the obs"
-
-    #     observations =  torch.from_numpy(obs)
-    #     res = self.Q_model(observations)
-    #     logits = F.log_softmax(res,1)
-    #     entropy = Categorical(logits= logits).entropy().detach().cpu().numpy()
-    #     return entropy
-
-
-    # def get_entropy_rnn(self, obs, batch_size, seq_lens=None):
-    #     self.reset_rnn_hidden()
-    #     assert seq_lens is None, "currently not supported"
-    #     if batch_size == 1 and len(obs) != batch_size:
-    #         observations = [torch.from_numpy(obs)]
-    #     elif batch_size != len(obs):
-    #         assert False, "Batch size doesnt match len of the obs"
-    #     else:
-    #         observations = [torch.from_numpy(x) for x in obs]
-    #     seq_lens = np.ones(batch_size)
-    #     states =  self.pack_sorted_data_h(observations, seq_lens).to(self.device)
-    #     res = self.Q_model(states)
-    #     logits = F.log_softmax(res,1)
-    #     self.reset_rnn_hidden()
-    #     return Categorical(logits= logits).entropy().detach().cpu().numpy()
-
-
-    # def get_entropy(self, obs, batch_size):
-    #     if batch_size == len(obs):
-    #         res = self.Q_model(obs)
-    #     elif batch_size == 1 and len(obs) != batch_size:
-    #         obs = torch.unsqueeze(obs, 1)
-    #         res = self.Q_model(obs)
-    #     else:
-    #         assert False, "Batch size doesnt match len of the obs"
-    #     logits = F.log_softmax(res,1)
-    #     return Categorical(logits= logits).entropy().detach().cpu().numpy()
         
 
     def save_agent(self,f_name):
@@ -123,6 +79,7 @@ class DQN_Agent(RL_Agent):
                     all_ent = self.calc_entropy_from_vec(all_actions)
                     for i in range(self.num_parallel_envs):
                         self.stored_entropy[i].append(all_ent[i])
+
                 selected_actions = torch.argmax(all_actions, -1).detach().cpu().numpy().astype(np.int32)
 
         return self.return_correct_actions_dim(selected_actions, num_obs)
@@ -174,8 +131,10 @@ class DQN_Agent(RL_Agent):
 
         for b in range(0,all_samples_len, self.batch_size):
             batch_states = states[b:b+self.batch_size]
+            # batch_states = states.slice_tensors(slice(b,b+self.batch_size))
             batched_actions = actions[b:b+self.batch_size]
             batched_next_states = next_states[b:b+self.batch_size]
+            # batched_next_states = next_states.slice_tensors(slice(b,b+self.batch_size))
             batched_rewards = rewards[b:b+self.batch_size]
             batched_dones = dones[b:b+self.batch_size]
             v_table = self.Q_model(batch_states)
@@ -207,8 +166,11 @@ class DQN_Agent(RL_Agent):
     def update_policy_rnn(self, *exp):
         if len(exp) == 0:
             states, actions, rewards, dones, next_states = self._get_dqn_experiences(random_samples=(not self.rnn))
+            # states, actions, rewards, dones, next_states = self.get_last_collected_experiences(self.num_parallel_envs)
         else:
             states, actions, rewards, dones, next_states = exp
+        num_samples = len(states)
+
         done_indices = torch.where(dones == True)[0].cpu().numpy().astype(np.int32)
         seq_lens, sorted_data_sub_indices = self.get_seqs_indices_for_pack(done_indices)
         sorted_actions = actions[sorted_data_sub_indices]
@@ -217,6 +179,8 @@ class DQN_Agent(RL_Agent):
         pakced_states = self.pack_from_done_indices(states, seq_lens, done_indices)
         pakced_next_states = self.pack_from_done_indices(next_states, seq_lens, done_indices)
 
+        num_grad_updates = num_samples // self.batch_size
+        # for i in range(num_grad_updates):
         v_table = self.Q_model(pakced_states)
         v_table = v_table #.reshape(normal_b_size, len(self.action_space))
         q_values = v_table[np.arange(len(v_table)), sorted_actions]
@@ -224,10 +188,10 @@ class DQN_Agent(RL_Agent):
             q_next = self.target_Q_model(pakced_next_states).detach().max(1)[0] #.reshape(normal_b_size, len(self.action_space))
         expected_next_values = sorted_rewards + (1-sorted_dones) * self.discount_factor * q_next
         loss = self.criterion(q_values, expected_next_values)
-        # self.losses.append(loss.item())
+
         # Optimize the model
         self.optimizer.zero_grad()
-        
+        # self.losses.append(loss.item())
         loss.backward()
         self.optimizer.step()
         self.target_update_counter += 1

@@ -99,8 +99,7 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
             self.write_env(env, itr)
             # n_steps_collected = 0
             mean_r = 0
-            num_last_samples = 0
-            for i in range(self.curr_iter, n_episodes):
+            for i in range(n_episodes):
 
                 trainee_rewards = self.trainee.train_episodial(env, n_episodes, disable_tqdm=True) #train n_episodes per generated_env
                 antagonist_rewards = self.antagonist.train_episodial(env, n_episodes, disable_tqdm=True) #train n_episodes per generated_env
@@ -131,9 +130,10 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
             self.teacher.clear_exp()
             self.trainee.clear_exp()
             self.antagonist.clear_exp()
+
+            self.curr_iter = itr
             if itr % self.save_agent_iters == self.near_save_coeff:
                 self.save_ckpts(itr)
-            self.curr_iter = itr
 
         self.trainee.close_env_procs()
         self.antagonist.close_env_procs()
