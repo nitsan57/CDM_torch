@@ -180,28 +180,28 @@ class DQN_Agent(RL_Agent):
         pakced_next_states = self.pack_from_done_indices(next_states, seq_lens, done_indices)
 
         num_grad_updates = num_samples // self.batch_size
-        # for i in range(num_grad_updates):
-        v_table = self.Q_model(pakced_states)
-        v_table = v_table #.reshape(normal_b_size, len(self.action_space))
-        q_values = v_table[np.arange(len(v_table)), sorted_actions]
-        with torch.no_grad():
-            q_next = self.target_Q_model(pakced_next_states).detach().max(1)[0] #.reshape(normal_b_size, len(self.action_space))
-        expected_next_values = sorted_rewards + (1-sorted_dones) * self.discount_factor * q_next
-        loss = self.criterion(q_values, expected_next_values)
+        for i in range(num_grad_updates):
+            v_table = self.Q_model(pakced_states)
+            v_table = v_table #.reshape(normal_b_size, len(self.action_space))
+            q_values = v_table[np.arange(len(v_table)), sorted_actions]
+            with torch.no_grad():
+                q_next = self.target_Q_model(pakced_next_states).detach().max(1)[0] #.reshape(normal_b_size, len(self.action_space))
+            expected_next_values = sorted_rewards + (1-sorted_dones) * self.discount_factor * q_next
+            loss = self.criterion(q_values, expected_next_values)
 
-        # Optimize the model
-        self.optimizer.zero_grad()
-        # self.losses.append(loss.item())
-        loss.backward()
-        self.optimizer.step()
-        self.target_update_counter += 1
-        if self.target_update_counter > self.target_update_time:
-            self.update_target()
-            self.target_update_counter = 0
-        
+            # Optimize the model
+            self.optimizer.zero_grad()
+            # self.losses.append(loss.item())
+            loss.backward()
+            self.optimizer.step()
+            self.target_update_counter += 1
+            if self.target_update_counter > self.target_update_time:
+                self.update_target()
+                self.target_update_counter = 0
+            
 
-        self.exploration_epsilon = self.exploration_epsilon * (1-self.eps_dec) \
-            if self.exploration_epsilon > self.eps_min else self.eps_min
+            self.exploration_epsilon = self.exploration_epsilon * (1-self.eps_dec) \
+                if self.exploration_epsilon > self.eps_min else self.eps_min
 
 
     def get_last_collected_experiences(self, num_episodes):
