@@ -89,6 +89,9 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
         self.set_agents_to_train_mode()
         all_mean_rewards = []
         pbar = tqdm(range(self.curr_iter, n_iters))
+
+        paired_to_calc = 4
+        
         number_of_envs_to_gen = 1
         num_last_samples = None
         self.trainee.set_store_entropy(True)
@@ -99,19 +102,18 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
             self.write_env(env, itr)
             # n_steps_collected = 0
             mean_r = 0
-            for i in range(n_episodes):
 
-                trainee_rewards = self.trainee.train_episodial(env, n_episodes, disable_tqdm=True) #train n_episodes per generated_env
-                antagonist_rewards = self.antagonist.train_episodial(env, n_episodes, disable_tqdm=True) #train n_episodes per generated_env
-                # curr_steps_collected = np.sum([len(r) for r in trainee_rewards])
+            trainee_rewards = self.trainee.train_episodial(env, n_episodes*paired_to_calc, disable_tqdm=True) #train n_episodes per generated_env
+            antagonist_rewards = self.antagonist.train_episodial(env, n_episodes*paired_to_calc, disable_tqdm=True) #train n_episodes per generated_env
+            # curr_steps_collected = np.sum([len(r) for r in trainee_rewards])
 
-                trainee_avg_r = np.mean(trainee_rewards)
-                trainee_max_r = np.max(trainee_rewards)
-                anta_avg_r = np.mean(antagonist_rewards)
-                anta_max_r = np.max(antagonist_rewards)
+            trainee_avg_r = np.mean(trainee_rewards)
+            trainee_max_r = np.max(trainee_rewards)
+            anta_avg_r = np.mean(antagonist_rewards)
+            anta_max_r = np.max(antagonist_rewards)
 
-                # n_steps_collected += curr_steps_collected
-                mean_r +=trainee_avg_r
+            # n_steps_collected += curr_steps_collected
+            mean_r +=trainee_avg_r
             
             all_mean_rewards.append(mean_r/n_episodes)
             desciption = f"R:{np.round(mean_r/n_episodes, 2):08}"

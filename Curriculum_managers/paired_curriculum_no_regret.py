@@ -77,23 +77,22 @@ class PAIRED_Curriculum_no_regret(Curriculum_Manager):
         all_mean_rewards = []
         pbar = tqdm(range(self.curr_iter, n_iters))
         number_of_envs_to_gen = 1
-
+        paired_to_calc = 4 
         for itr in pbar:
             envs = self.create_envs(number_of_envs_to_gen, teacher_eval_mode=False)
             # in paired we create single env
             env = envs[0]
             self.write_env(env, itr)
             mean_r = 0
-            for i in range(n_episodes):
-                trainee_rewards = self.trainee.train_episodial(env, n_episodes, disable_tqdm=True) #train n_episodes per generated_env      
-                antagonist_rewards = self.antagonist.train_episodial(env, n_episodes, disable_tqdm=True) #train n_episodes per generated_env
+            trainee_rewards = self.trainee.train_episodial(env, n_episodes*paired_to_calc, disable_tqdm=True) #train n_episodes per generated_env      
+            antagonist_rewards = self.antagonist.train_episodial(env, n_episodes*paired_to_calc, disable_tqdm=True) #train n_episodes per generated_env
 
-                trainee_avg_r = np.mean(trainee_rewards)
-                trainee_max_r = np.max(trainee_rewards)
-                anta_avg_r = np.mean(antagonist_rewards)
-                anta_max_r = np.max(antagonist_rewards)
+            trainee_avg_r = np.mean(trainee_rewards)
+            trainee_max_r = np.max(trainee_rewards)
+            anta_avg_r = np.mean(antagonist_rewards)
+            anta_max_r = np.max(antagonist_rewards)
 
-                mean_r +=trainee_avg_r
+            mean_r +=trainee_avg_r
             
             all_mean_rewards.append(mean_r/n_episodes)
             desciption = f"R:{np.round(mean_r/n_episodes, 2):08}"
