@@ -7,6 +7,7 @@ import utils
 from Curriculum_managers.random_curriculum import Random_Curriculum
 from Curriculum_managers.paired_curriculum import PAIRED_Curriculum
 from Curriculum_managers.paired_curriculum_no_regret_teacher_entropy import  PAIRED_Curriculum_no_regret_entropy
+from Curriculum_managers.paired_curriculum_no_regulator import Curriculum_Entropy_Only
 import argparse
 
 def get_env(env_name):
@@ -18,7 +19,7 @@ def get_env(env_name):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--env_name", help=f"env_to_train - {get_all_avail_envs()}")
-parser.add_argument("--method", help="the train method - random, paired, paired_entropy, paired_no_reg")
+parser.add_argument("--method", help="the train method - random, paired, paired_entropy, entropy_only")
 parser.add_argument("--iters", help="num_of_iters", type=int)
 
 
@@ -41,8 +42,8 @@ def main(args):
         teacher = PAIRED_Curriculum(env, teacher_agent=teacher_agent ,trainee=p_agent)
     elif args.method == "paired_entropy":
         teacher = PAIRED_Curriculum_no_regret_entropy(env, teacher_agent=teacher_agent ,trainee=p_agent)
-    elif args.method == "paired_no_reg":
-        teacher = PAIRED_Curriculum_no_regret(env, teacher_agent=teacher_agent ,trainee=p_agent)
+    elif args.method == "entropy_only":
+        teacher = Curriculum_Entropy_Only(env, teacher_agent=teacher_agent ,trainee=p_agent)
 
     p_rewards = teacher.teach(n_iters=args.iters, n_episodes=1)
 
