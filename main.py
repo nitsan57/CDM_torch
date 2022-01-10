@@ -6,8 +6,6 @@ from Agents.ppo_agent import PPO_Agent
 import utils
 from Curriculum_managers.random_curriculum import Random_Curriculum
 from Curriculum_managers.paired_curriculum import PAIRED_Curriculum
-# from Curriculum_managers.paired_curriculum_extented import  PAIRED_Curriculum_entropy
-from Curriculum_managers.paired_curriculum_no_regret import  PAIRED_Curriculum_no_regret
 from Curriculum_managers.paired_curriculum_no_regret_teacher_entropy import  PAIRED_Curriculum_no_regret_entropy
 import argparse
 
