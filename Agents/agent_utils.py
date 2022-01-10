@@ -444,10 +444,7 @@ class ParallelEnv():
         self.p_env.change_env(env)
 
     def get_envs(self):
-        if self.num_envs == 1:
-            return [self.p_env.env]
-        else:
-            return self.p_env.get_envs()
+        return self.p_env.get_envs()
 
     def reset(self):
         return self.p_env.reset()
@@ -537,6 +534,9 @@ class SingleEnv_m():
 
     def change_env(self, env):
         self.env = env
+
+    def get_envs(self):
+        return [self.env]
 
     def reset(self):
         return [self.env.reset()]

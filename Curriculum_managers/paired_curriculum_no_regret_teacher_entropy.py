@@ -13,24 +13,13 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
     def __init__(self, abstract_env, trainee, teacher_agent, save_dir=None) -> None:
         if save_dir is None:
             save_dir = "./results/PAIRED_Curriculum_no_regret_entropy/" + abstract_env.__class__.__name__ + "/"
-
-        self.antagonist = deepcopy(trainee)
+        
         self.random_z_dim = (10,)
         self.teacher = teacher_agent
         self.teacher.add_to_obs_shape({'random_z': self.random_z_dim})
-        self.entropy_dim = (1,)
-        # self.teacher.add_to_obs_shape({'entropy': np.ones(self.entropy_dim).astype(np.int32)})
-        # self.teacher.add_to_obs_shape({'last_gameboard': abstract_env.get_generator_observation_space().shape})
+        self.antagonist = deepcopy(trainee)
         super().__init__(abstract_env, trainee, save_dir)
 
-
-        
-    def get_next_env_block(self, obs):
-        random_z  = torch.rand(self.random_z_dim, device=self.device)
-        obs['random_z'] = random_z
-        # or act
-        teacher_action = self.teacher.act(obs)
-        return teacher_action
 
 
     def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
@@ -38,29 +27,24 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
         self.teacher.set_num_parallel_env(number_of_envs)
         if teacher_eval_mode:
             self.teacher.set_eval_mode()
-        a_env = self.abstract_env
-        a_env = ParallelEnv(a_env, number_of_envs)
+
+        a_env = ParallelEnv(self.abstract_env, number_of_envs)
+
+
         if not teacher_eval_mode:
             self.teacher.set_train_mode()
             random_z  = np.random.rand(self.random_z_dim[0])
-            # entropy = self.trainee.get_stored_entropy()
-            # entropy = functools.reduce(operator.iconcat, entropy, [])
-            # if entropy == []:
-            #     entropy = np.ones(1).astype(np.float32)
-            # else:
-            #     entropy = np.mean(entropy).reshape((1,)).astype(np.float32)
-
-            # self.trainee.clear_stored_entropy()
-
-            last_gameboard = self.abstract_env.get_observation(agent=False)
             additional_const_features = {'random_z':  random_z}
-            self.teacher.collect_episode_obs(a_env, max_episode_len=self.teacher_max_steps, env_funcs={"step":"step_generator", "reset":"clear_env"},additional_const_features=additional_const_features)
+            self.teacher.collect_episode_obs(a_env, max_episode_len=self.teacher_max_steps, env_funcs={"step":"step_generator", "reset":"clear_env"}, additional_const_features=additional_const_features)
         else:
             for i in range(self.teacher_max_steps):
                 obs = a_env.clear_env()
                 a = self.teacher.act(obs)
                 a_env.step_generator(a)
+
         # normal gym env again
+        self.abstract_env = a_env.get_envs()[0]
+
         return a_env.get_envs()
 
         
@@ -77,6 +61,7 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
         self.trainee.load_agent(a_path)
         self.antagonist.load_agent(anta_path)
         self.teacher.load_agent(t_path)
+        return {'trainee': self.trainee, 'antagonist': self.antagonist}
 
 
     def set_agents_to_train_mode(self):
@@ -119,11 +104,7 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
             
             all_mean_rewards.append(mean_r/n_episodes)
 
-            # train teacher_model
-            # if anta_max_r > trainee_max_r:
-            #     teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
-            # else:
-            #     teacher_reward = (trainee_max_r / self.max_episode_steps)- anta_avg_r
+
             entropy = self.trainee.get_stored_entropy()
             
             entropy = functools.reduce(operator.iconcat, entropy, [])

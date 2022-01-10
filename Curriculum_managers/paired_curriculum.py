@@ -14,9 +14,9 @@ class PAIRED_Curriculum(Curriculum_Manager):
         if save_dir is None:
             save_dir = "./results/PAIRED_Curriculum/" + abstract_env.__class__.__name__ + "/"
 
-        self.random_z_space = (10,)
+        self.random_z_dim = (10,)
         self.teacher = teacher_agent
-        self.teacher.add_to_obs_shape({'random_z': self.random_z_space})
+        self.teacher.add_to_obs_shape({'random_z': self.random_z_dim})
         self.antagonist = deepcopy(trainee)
         super().__init__(abstract_env, trainee, save_dir)
         
@@ -32,7 +32,7 @@ class PAIRED_Curriculum(Curriculum_Manager):
         a_env = ParallelEnv(a_env, number_of_envs)
         if not teacher_eval_mode:
             self.teacher.set_train_mode()
-            random_z  = np.random.rand(self.random_z_space[0])
+            random_z  = np.random.rand(self.random_z_dim[0])
             additional_const_features = {'random_z':  random_z}
             self.teacher.collect_episode_obs(a_env, max_episode_len=self.teacher_max_steps, env_funcs={"step":"step_generator", "reset":"clear_env"}, additional_const_features=additional_const_features)
         else:
@@ -41,6 +41,7 @@ class PAIRED_Curriculum(Curriculum_Manager):
                 a = self.teacher.act(obs)
                 a_env.step_generator(a)
         # normal gym env again
+        # only because of **** const seed
         self.abstract_env = a_env.get_envs()[0]
         return a_env.get_envs()
 
@@ -117,12 +118,8 @@ class PAIRED_Curriculum(Curriculum_Manager):
             all_mean_rewards.append(mean_r/n_episodes)
             desciption = f"R:{np.round(mean_r/n_episodes, 2):08}"
             pbar.set_description(desciption)
-            # train teacher_model
-            # if anta_max_r > trainee_max_r:
-            teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
-            # else:
-            #     teacher_reward = (trainee_max_r / self.max_episode_steps)- anta_avg_r
 
+            teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             teacher_exp[reward_buffer_index][-1] = teacher_reward
             self.teacher.update_policy(*teacher_exp)

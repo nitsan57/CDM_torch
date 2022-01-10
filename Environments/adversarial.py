@@ -210,7 +210,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
     def reset_status(self):
         """Reset the agent's position, direction, done, and carrying status."""
         self.agent_pos = [None] * self.n_agents
-        self.agent_dir = np.random.randint((1, self.n_agents))
+        self.agent_dir = [self.agent_start_dir] * self.n_agents
         self.done = [False] * self.n_agents
         self.carrying = [None] * self.n_agents
 
@@ -235,7 +235,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
         if self.agent_start_pos is None:
             raise ValueError('Trying to place agent at empty start position.')
         else:
-            self.place_agent_at_pos(0, self.agent_start_pos, rand_dir=True)
+            self.place_agent_at_pos(0, self.agent_start_pos, rand_dir=False)
 
         for a in range(self.n_agents):
             assert self.agent_pos[a] is not None

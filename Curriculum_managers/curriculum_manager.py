@@ -30,6 +30,8 @@ class Curriculum_Manager(ABC):
             self.load_meta_data()
             print(f'loading models from last iter: {self.curr_iter}')
             self.load_models(self.curr_iter)
+        else:
+            print(f'no files to load from')
             
 
     def save_ckpts(self, i):

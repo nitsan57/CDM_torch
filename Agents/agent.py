@@ -278,6 +278,7 @@ class RL_Agent(ABC):
     def close_env_procs(self):
         self.env = None
 
+
     def collect_episode_obs(self, env, max_episode_len=None, num_to_collect=None, env_funcs={"step": "step", "reset": "reset"}, additional_const_features={}):
         # supports run on different env api
         if type(env) != ParallelEnv:
@@ -290,8 +291,8 @@ class RL_Agent(ABC):
         else:
             self.env = env
 
-        step_function = getattr(env, env_funcs["step"])
-        reset_function = getattr(env, env_funcs["reset"])
+        step_function = getattr(self.env, env_funcs["step"])
+        reset_function = getattr(self.env, env_funcs["reset"])
 
         if max_episode_len:
             def episode_len_exceeded(x): return x > max_episode_len
@@ -354,7 +355,6 @@ class RL_Agent(ABC):
         if self.rnn:
             self.reset_rnn_hidden()
 
-
         observations = functools.reduce(operator.iconcat, observations, [])
         actions = functools.reduce(operator.iconcat, actions, [])
         rewards_x = functools.reduce(operator.iconcat, rewards, [])
@@ -365,6 +365,8 @@ class RL_Agent(ABC):
         
         next_observations = functools.reduce(operator.iconcat, next_observations, [])
         self.experience.append(observations, actions, rewards_x, dones, next_observations)
+
+
         return rewards
 
     @abstractmethod
