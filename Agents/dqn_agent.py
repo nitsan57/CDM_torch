@@ -76,6 +76,7 @@ class DQN_Agent(RL_Agent):
                 all_actions = torch.squeeze(all_actions,1)
 
                 if self.store_entropy:
+                    print("Fix me entropy stroage")
                     all_ent = self.calc_entropy_from_vec(all_actions)
                     for i in range(self.num_parallel_envs):
                         self.stored_entropy[i].append(all_ent[i])

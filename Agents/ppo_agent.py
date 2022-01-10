@@ -1,3 +1,5 @@
+import functools
+import operator
 import re
 import torch
 import torch.nn as nn
@@ -8,7 +10,6 @@ from Models.fc import FC
 from .agent_utils import calc_returns, calc_gaes
 from .agent import RL_Agent
 from torch.distributions import Categorical
-
 
 
 class PPO_Agent(RL_Agent):
@@ -35,7 +36,7 @@ class PPO_Agent(RL_Agent):
     def init_models(self):
         self.policy_nn = self.model(input_shape=self.obs_shape, out_shape=self.n_actions).to(self.device)
         self.actor_optimizer = optim.Adam(self.policy_nn.parameters(), self.lr)
-        self.actor_model = lambda x : Categorical(logits=F.softmax(self.policy_nn(x), dim=1))
+        self.actor_model = lambda x : Categorical(logits=F.log_softmax(self.policy_nn(x), dim=1))
         self.critic_model = self.model(input_shape=self.obs_shape, out_shape=1).to(self.device) #output single value - V(s) and not Q(s,a) as before
         self.critic_optimizer = optim.Adam(self.critic_model.parameters(), self.lr)
 
@@ -77,6 +78,19 @@ class PPO_Agent(RL_Agent):
         self.init_ppo_buffers()
         return train_episode_rewards
 
+    def best_act(self, observations, num_obs=1):
+        """batched observation only!"""
+        if not self.eval_mode:
+            print("warning using this function will not accumulate train data, if this is the intention use eval mode to avoid the message")
+
+        states = self.pre_process_obs_for_act(observations, num_obs)
+
+        with torch.no_grad():
+            actions_dist = self.actor_model(states)
+
+            selected_actions = torch.argmax(actions_dist.probs, 1).detach().cpu().numpy().astype(np.int32)
+            return self.return_correct_actions_dim(selected_actions, num_obs)
+
 
     def act(self, observations, num_obs=1):
         """batched observation only!"""
@@ -86,7 +100,9 @@ class PPO_Agent(RL_Agent):
             actions_dist = self.actor_model(states)
             if self.eval_mode:
                 # all_actions = torch.max(actions_dist.probs, axis=1)[1]
-                selected_actions = torch.argmax(actions_dist.probs, 1).detach().cpu().numpy().astype(np.int32)
+                # selected_actions = torch.argmax(actions_dist.probs, 1).detach().cpu().numpy().astype(np.int32)
+                selected_actions = actions_dist.sample().detach().cpu().numpy().astype(np.int32)
+
             else:
                 action = actions_dist.sample()
                 log_probs = actions_dist.log_prob(action).detach().flatten().float()
@@ -97,7 +113,10 @@ class PPO_Agent(RL_Agent):
                     self.values[i].append(values[i])
 
                 if self.store_entropy:
-                    all_ent = self.calc_entropy_from_logits(log_probs)
+                    
+                    all_ent = actions_dist.entropy().detach().cpu().numpy()
+                    # import pdb
+                    # pdb.set_trace()
                     for i in range(self.num_parallel_envs):
                         self.stored_entropy[i].append(all_ent[i])
 
@@ -118,11 +137,9 @@ class PPO_Agent(RL_Agent):
 
         assert num_episodes <= self.num_parallel_envs
         states, actions, rewards, dones, next_states = self.experience.get_last_episodes(self.num_parallel_envs)
-        # states = torch.tensor(states).to(self.device)
         actions = torch.tensor(actions).to(self.device)
         rewards = torch.tensor(rewards).to(self.device)
         dones = torch.tensor(dones).to(self.device)
-        # next_states = torch.tensor(next_states).to(self.device)
         states = states.get_as_tensors(self.device)
         next_states = next_states.get_as_tensors(self.device)
 
@@ -130,13 +147,13 @@ class PPO_Agent(RL_Agent):
         done_indices = np.where(dones.cpu().numpy() == True)[0]
         values = torch.zeros_like(rewards, dtype=torch.float32, device=self.device)
         logits = torch.zeros_like(rewards, dtype=torch.float32, device=self.device)
-        first_indice = 0
 
+        first_indice = -1
         for i in range(self.num_parallel_envs):
             current_done_indice = done_indices[i]
             curr_episode_len = current_done_indice - first_indice
-            values[first_indice:current_done_indice] = torch.tensor(self.values[i][:curr_episode_len])
-            logits[first_indice:current_done_indice] = torch.tensor(self.logits[i][:curr_episode_len])
+            values[first_indice+1:current_done_indice+1] = torch.tensor(self.values[i][:curr_episode_len])
+            logits[first_indice+1:current_done_indice+1] = torch.tensor(self.logits[i][:curr_episode_len])
             first_indice = current_done_indice
 
         return [states, actions, rewards, dones, next_states, values, logits]
@@ -244,9 +261,11 @@ class PPO_Agent(RL_Agent):
         # if self.num_parallel_envs == 1:
         #     relevant_indices_list = np.arange(0, len(states), self.batch_size)        
         returns = calc_returns(rewards, dones, self.discount_factor)
+
         advantages = calc_gaes(rewards, values, dones, self.discount_factor)
 
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
+        # returns = (returns - returns.mean()) / (returns.std() + 1e-10)
+        advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-10)
 
         self.init_ppo_buffers()
 
@@ -265,13 +284,25 @@ class PPO_Agent(RL_Agent):
         
         entropy_coeff = 0.001
         avg_c_loss = 0
+        num_samples = len(states)
+        num_grad_updates = num_samples // self.batch_size
         for e in range(self.num_epochs_per_update):
 
             dist = self.actor_model(pakced_states)
             values = self.critic_model(pakced_states)
 
             entropy = dist.entropy().mean()
-            new_log_probs = dist.log_prob(sorted_actions)                
+            new_log_probs = dist.log_prob(sorted_actions)        
+
+            # # #"------------------------------"        
+            # entropy2 = self.get_stored_entropy()
+            # entropy2 = functools.reduce(operator.iconcat, entropy2, [])
+            # if entropy2 == []:
+            #     entropy2 = 1
+            # else:
+            #     entropy2 = np.mean(entropy2).astype(np.float32)
+            # print(entropy2)
+            # #----------------------
 
             old_log_probs = sorted_logits # from acted policy
 
@@ -293,6 +324,7 @@ class PPO_Agent(RL_Agent):
             actor_loss.backward()
             # nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
             self.actor_optimizer.step()
+
 
     def clear_exp(self):
         self.experience.clear()

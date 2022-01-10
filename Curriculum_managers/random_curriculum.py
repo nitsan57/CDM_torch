@@ -33,7 +33,6 @@ class Random_Curriculum(Curriculum_Manager):
 
     
     def load_models(self, num_iter):
-        num_iter  = int(num_iter / self.near_save_coeff) * self.near_save_coeff
         path = f'{self.save_dir}/_{num_iter}_trainee.ckpt'
         self.trainee.load_agent(path)
         return {'trainee': self.trainee}
@@ -52,15 +51,19 @@ class Random_Curriculum(Curriculum_Manager):
         a_env.reset()
         return [a_env]
 
+
     def teach(self, n_iters, n_episodes=1):
+        number_episodes_for_regret_calc = 4
+        self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
         pbar = tqdm(range(self.curr_iter, n_iters))
         all_mean_rewards = []
         for i in pbar:
-            # create single rand env
             env = self.create_envs()[0] 
-            
             self.write_env(env, i)
-            rewards = self.trainee.train_episodial(env, n_episodes, max_episode_len=self.max_episode_steps, disable_tqdm=True) #train n_episodes per generated_env
+            # r_mean = 0
+            # for i in range(n_episodes):
+            # create single rand env
+            rewards = self.trainee.train_episodial(env, n_episodes*number_episodes_for_regret_calc, max_episode_len=self.max_episode_steps, disable_tqdm=True) #train n_episodes per generated_env
             r_mean = np.mean(rewards)
             all_mean_rewards.append(r_mean)
             desciption = f"R:{np.round(np.mean(all_mean_rewards[-20:]), 2):08}"

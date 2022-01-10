@@ -19,8 +19,8 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
         self.teacher = teacher_agent
         self.teacher.add_to_obs_shape({'random_z': self.random_z_dim})
         self.entropy_dim = (1,)
-        self.teacher.add_to_obs_shape({'entropy': np.ones(self.entropy_dim).astype(np.int32)})
-        self.teacher.add_to_obs_shape({'last_gameboard': abstract_env.get_generator_observation_space().shape})
+        # self.teacher.add_to_obs_shape({'entropy': np.ones(self.entropy_dim).astype(np.int32)})
+        # self.teacher.add_to_obs_shape({'last_gameboard': abstract_env.get_generator_observation_space().shape})
         super().__init__(abstract_env, trainee, save_dir)
 
 
@@ -43,17 +43,17 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
         if not teacher_eval_mode:
             self.teacher.set_train_mode()
             random_z  = np.random.rand(self.random_z_dim[0])
-            entropy = self.trainee.get_stored_entropy()
-            entropy = functools.reduce(operator.iconcat, entropy, [])
-            if entropy == []:
-                entropy = np.ones(1).astype(np.float32)
-            else:
-                entropy = np.mean(entropy).reshape((1,)).astype(np.float32)
+            # entropy = self.trainee.get_stored_entropy()
+            # entropy = functools.reduce(operator.iconcat, entropy, [])
+            # if entropy == []:
+            #     entropy = np.ones(1).astype(np.float32)
+            # else:
+            #     entropy = np.mean(entropy).reshape((1,)).astype(np.float32)
 
-            self.trainee.clear_stored_entropy()
+            # self.trainee.clear_stored_entropy()
 
             last_gameboard = self.abstract_env.get_observation(agent=False)
-            additional_const_features = {'random_z':  random_z, 'entropy':  entropy, 'last_gameboard' : last_gameboard}
+            additional_const_features = {'random_z':  random_z}
             self.teacher.collect_episode_obs(a_env, max_episode_len=self.teacher_max_steps, env_funcs={"step":"step_generator", "reset":"clear_env"},additional_const_features=additional_const_features)
         else:
             for i in range(self.teacher_max_steps):
@@ -89,6 +89,10 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
         self.set_agents_to_train_mode()
         all_mean_rewards = []
         pbar = tqdm(range(self.curr_iter, n_iters))
+        number_episodes_for_regret_calc = 4 # same as paired paper
+        self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
+        self.antagonist.set_num_parallel_env(number_episodes_for_regret_calc)
+        entropy_coeff = 0.001
 
         paired_to_calc = 4
         
@@ -108,21 +112,32 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
             # curr_steps_collected = np.sum([len(r) for r in trainee_rewards])
 
             trainee_avg_r = np.mean(trainee_rewards)
-            trainee_max_r = np.max(trainee_rewards)
-            anta_avg_r = np.mean(antagonist_rewards)
             anta_max_r = np.max(antagonist_rewards)
 
             # n_steps_collected += curr_steps_collected
             mean_r +=trainee_avg_r
             
             all_mean_rewards.append(mean_r/n_episodes)
-            desciption = f"R:{np.round(mean_r/n_episodes, 2):08}"
-            pbar.set_description(desciption)
+
             # train teacher_model
-            if anta_max_r > trainee_max_r:
-                teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
+            # if anta_max_r > trainee_max_r:
+            #     teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
+            # else:
+            #     teacher_reward = (trainee_max_r / self.max_episode_steps)- anta_avg_r
+            entropy = self.trainee.get_stored_entropy()
+            
+            entropy = functools.reduce(operator.iconcat, entropy, [])
+            if entropy == []:
+                entropy = 1
             else:
-                teacher_reward = (trainee_avg_r / self.max_episode_steps)- anta_avg_r
+                entropy = np.mean(entropy).astype(np.float32)
+
+
+            desciption = f"R:{np.round(mean_r/n_episodes, 2):08}, entropy: {entropy :01.4}"
+            pbar.set_description(desciption)
+
+            self.trainee.clear_stored_entropy()
+            teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r + (entropy_coeff * entropy)
 
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             reward_buffer_index = self.trainee.experience.reward_index

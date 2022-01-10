@@ -7,7 +7,6 @@ import functools
 import operator
 from .agent_utils import ParallelEnv
 import torch
-from functools import wraps
 from time import time
 import torch.nn.functional as F
 from torch.distributions import Categorical
@@ -53,8 +52,19 @@ class RL_Agent(ABC):
         return entropy
 
 
+    def fix_entropy_buffers(self, done_indices):
+        tmp=  []
+        
+        for i,x in enumerate(self.stored_entropy):
+            tmp.append(x[:done_indices[i]])
+        self.stored_entropy = tmp
+
     def get_stored_entropy(self,):
-        return self.stored_entropy
+        if self.set_store_entropy:
+            return self.stored_entropy
+        else:
+            print("calling a function withou set_store_entropy first will allwayes return 0")
+            return 0
 
 
     def init_entropy_buffer(self):
@@ -83,6 +93,7 @@ class RL_Agent(ABC):
         self.init_models()
         self.experience = ExperienceReplay(self.mem_size, self.obs_shape)
 
+
     @abstractmethod
     def save_agent(self,):
         raise NotImplementedError
@@ -92,14 +103,17 @@ class RL_Agent(ABC):
     def load_agent(self, f_name):
         raise NotImplementedError
 
+
     def set_train_mode(self):
         self.reset_rnn_hidden()
         self.eval_mode = self.TRAIN
+
 
     def set_eval_mode(self):
         self.reset_rnn_hidden()
         self.eval_mode = self.EVAL
         self.set_store_entropy(False)
+
 
     def train_episodial(self, env, n_episodes, max_episode_len=None, disable_tqdm=False, additional_const_features={}):
         old_parallel_envs = self.num_parallel_envs
@@ -108,8 +122,10 @@ class RL_Agent(ABC):
         train_r = self._train_n_iters(env, n_episodes, True, max_episode_len=max_episode_len, disable_tqdm=disable_tqdm, additional_const_features=additional_const_features)
         return train_r
 
+
     def train_n_steps(self, env, n_steps, max_episode_len=None, disable_tqdm=False, additional_const_features={}):
         return self._train_n_iters(env, n_steps, episodes=False, max_episode_len=max_episode_len, disable_tqdm=disable_tqdm, additional_const_features=additional_const_features)
+
 
     def _train_n_iters(self, env, n_iters, episodes=False, max_episode_len=None, disable_tqdm=False, additional_const_features={}):
         """General train function, if episodes is true- each iter is episode, otherwise train steps"""
@@ -141,7 +157,7 @@ class RL_Agent(ABC):
             collect_info = [self.num_parallel_envs, num_steps_collected]
             curr_training_steps += num_steps_collected
 
-            desciption = f"episode {ep_number}, R:{np.round(np.mean(train_rewards[-self.batch_size:]), 2):08}, total_steps:{curr_training_steps}"
+            desciption = f"episode {ep_number}, R:{np.round(np.mean(train_rewards[-self.num_parallel_envs:]), 2):08}, total_steps:{curr_training_steps}"
             pbar.set_description(desciption)
 
             pbar.update(collect_info[to_update_idx])
@@ -169,6 +185,7 @@ class RL_Agent(ABC):
         raise NotImplementedError
 
     def set_num_parallel_env(self, num_parallel_envs):
+        assert self.num_parallel_envs <= self.batch_size, f"please provide batch_size>= num_parallel_envs current: {self.batch_size}, {num_parallel_envs},"
         self.num_parallel_envs = num_parallel_envs
         self.init_entropy_buffer()
 
@@ -342,6 +359,10 @@ class RL_Agent(ABC):
         actions = functools.reduce(operator.iconcat, actions, [])
         rewards_x = functools.reduce(operator.iconcat, rewards, [])
         dones = functools.reduce(operator.iconcat, dones, [])
+        if self.store_entropy:
+            done_indices = np.where(np.array(dones) == True)[0]
+            self.fix_entropy_buffers(done_indices)
+        
         next_observations = functools.reduce(operator.iconcat, next_observations, [])
         self.experience.append(observations, actions, rewards_x, dones, next_observations)
         return rewards

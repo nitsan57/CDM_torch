@@ -20,6 +20,10 @@ class AbstractModel(torch.nn.Module, ABC):
             self.out_shape = self.out_shape.reshape((1,))
 
 
+    def get_total_params(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+        
     @abstractmethod
     def forward(self, x):
         raise NotImplementedError

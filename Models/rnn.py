@@ -5,7 +5,7 @@ from .base_model import AbstractModel
 
 class RNN(AbstractModel):
     is_rnn = True
-    def __init__(self, input_shape, out_shape, hidden_dim = 128, num_grus=3):
+    def __init__(self, input_shape, out_shape, hidden_dim = 64, num_grus=2):
         super().__init__(input_shape, out_shape)
 
         self.input_size_dict = {k: np.prod(self.input_shape[k]) for k in self.input_shape}

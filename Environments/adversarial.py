@@ -26,17 +26,12 @@ Has additional functions, step_generator, and reset. How to use:
    adversary designed it. A new agent can now play it using the step() function.
 """
 import random
-
 import gym
 import gym_minigrid.minigrid as minigrid
 import networkx as nx
 from networkx import grid_graph
 import numpy as np
-from numpy.lib.type_check import imag
-from torch.functional import _return_inverse
-
 from . import multigrid
-# from social_rl.gym_multigrid import register
 from .environments import register_env
 from .base_curriculum_env import Base_Env
 
@@ -215,7 +210,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
     def reset_status(self):
         """Reset the agent's position, direction, done, and carrying status."""
         self.agent_pos = [None] * self.n_agents
-        self.agent_dir = [self.agent_start_dir] * self.n_agents
+        self.agent_dir = np.random.randint((1, self.n_agents))
         self.done = [False] * self.n_agents
         self.carrying = [None] * self.n_agents
 
@@ -240,7 +235,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
         if self.agent_start_pos is None:
             raise ValueError('Trying to place agent at empty start position.')
         else:
-            self.place_agent_at_pos(0, self.agent_start_pos, rand_dir=False)
+            self.place_agent_at_pos(0, self.agent_start_pos, rand_dir=True)
 
         for a in range(self.n_agents):
             assert self.agent_pos[a] is not None

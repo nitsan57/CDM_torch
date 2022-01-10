@@ -21,11 +21,8 @@ location of the agent, and the goal location.
 """
 import gym_minigrid.minigrid as minigrid
 import numpy as np
-from social_rl.gym_multigrid import multigrid
-# from social_rl.gym_multigrid.register import register
-from .environments import register_env
-from .base_curriculum_env import Base_Env
-
+from Environments import multigrid
+from Environments.environments import register_test_env
 
 
 class MazeEnv(multigrid.MultiGridEnv):
@@ -351,69 +348,16 @@ if hasattr(__loader__, 'name'):
 elif hasattr(__loader__, 'fullname'):
   module_path = __loader__.fullname
 
-# register(
-#     env_id='MultiGrid-Maze-v0',
-#     entry_point=module_path + ':MazeEnv'
-# )
 
-# register(
-#     env_id='MultiGrid-MiniMaze-v0',
-#     entry_point=module_path + ':MiniMazeEnv'
-# )
+register_test_env(MazeEnv)
+register_test_env(MiniMazeEnv)
+register_test_env(MediumMazeEnv)
+register_test_env(HorizontalMazeEnv)
+register_test_env(Maze3Env)
+register_test_env(LabyrinthEnv)
+register_test_env(Labyrinth2Env)
+register_test_env(SixteenRoomsEnv)
+register_test_env(SixteenRoomsFewerDoorsEnv)
+register_test_env(NineRoomsEnv)
+register_test_env(NineRoomsFewerDoorsEnv)
 
-# register(
-#     env_id='MultiGrid-MediumMaze-v0',
-#     entry_point=module_path + ':MediumMazeEnv'
-# )
-
-# register(
-#     env_id='MultiGrid-Maze2-v0',
-#     entry_point=module_path + ':HorizontalMazeEnv'
-# )
-
-# register(
-#     env_id='MultiGrid-Maze3-v0',
-#     entry_point=module_path + ':Maze3Env'
-# )
-
-# register(
-#     env_id='MultiGrid-Labyrinth-v0',
-#     entry_point=module_path + ':LabyrinthEnv'
-# )
-
-# register(
-#     env_id='MultiGrid-Labyrinth2-v0',
-#     entry_point=module_path + ':Labyrinth2Env'
-# )
-
-# register(
-#     env_id='MultiGrid-SixteenRooms-v0',
-#     entry_point=module_path + ':SixteenRoomsEnv'
-# )
-
-# register(
-#     env_id='MultiGrid-SixteenRoomsFewerDoors-v0',
-#     entry_point=module_path + ':SixteenRoomsFewerDoorsEnv'
-# )
-
-# register(
-#     env_id='MultiGrid-NineRooms-v0',
-#     entry_point=module_path + ':NineRoomsEnv'
-# )
-
-# register(
-#     env_id='MultiGrid-NineRoomsFewerDoors-v0',
-#     entry_point=module_path + ':NineRoomsFewerDoorsEnv'
-# )
-
-# register_env(MazeEnv)
-# register_env(MiniMazeEnv)
-# register_env(MediumMazeEnv)
-# register_env(HorizontalMazeEnv)
-# register_env(Maze3Env)
-# register_env(LabyrinthEnv)
-# register_env(Labyrinth2Env)
-# register_env(SixteenRoomsEnv)
-# register_env(SixteenRoomsFewerDoorsEnv)
-# register_env(NineRoomsEnv)
-# register_env(NineRoomsFewerDoorsEnv)

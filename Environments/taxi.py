@@ -801,7 +801,15 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         for i in range(13):
             self.step_generator(2 * i)
         self.reset_agent()
-        # self.observation_space = gym.spaces.Dict(observation_space)
+
+
+    def init_from_vec(self, vec):
+
+        """encoded number of loc"""
+        assert len(vec) >= self.generator_min_steps_for_init_map, "provided vector is too short for init"
+        for v in vec:
+            self.step_generator(v)
+        self.reset_agent()
 
         
 

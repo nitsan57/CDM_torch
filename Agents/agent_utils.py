@@ -1,14 +1,8 @@
-from cv2 import imshow
-import gym
-from time import sleep
 from collections import namedtuple
 from multiprocessing import Process, Pipe
 import numpy as np
 import torch
 import copy
-
-from Environments.base_curriculum_env import Base_Env
-
 
 def calc_returns(rewards, dones, discount_factor):
     """works with rewards vector which consitst of many epidsodes"""
@@ -47,13 +41,28 @@ def calc_gaes(rewards, values, dones, discount_factor=0.99, decay=0.95):
 
     return gaes
 
+import gym
 
 class ObsShapeWraper(dict):
-    def __init__(self, *args, **kwargs):
-        try:
-            super(ObsShapeWraper, self).__init__(*args, **kwargs)
-        except TypeError:
-            super(ObsShapeWraper, self).__init__({'data': tuple(*args)})          
+    dict_types = [dict, gym.spaces.Dict]
+    
+    def __init__(self, obs_shape):
+            res = {}
+            self.dict_types.append(type(self))
+            if type(obs_shape) in self.dict_types:
+                try:
+                    for x in obs_shape:
+                        res[x] = obs_shape[x].shape
+                except AttributeError:
+                    for x in obs_shape:
+                        res[x] = obs_shape[x]
+                super(ObsShapeWraper, self).__init__(res)
+            else:
+                try:
+                    res = obs_shape.shape
+                except AttributeError:
+                    res = obs_shape
+                super(ObsShapeWraper, self).__init__({'data': tuple([*res])})          
 
 
 class ObsWraper:
@@ -105,7 +114,7 @@ class ObsWraper:
             for obs in obs_list:
                 res.append(obs[k])
             res = np.array(res)
-            if res.shape[0] != 1:
+            if res.shape[0] != 1 and res.shape[1] == 1:
                 self.data[k] = np.squeeze(res, axis=1)
             else:
                 self.data[k] = res

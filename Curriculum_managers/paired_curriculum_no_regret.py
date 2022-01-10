@@ -84,6 +84,8 @@ class PAIRED_Curriculum_no_regret(Curriculum_Manager):
             env = envs[0]
             self.write_env(env, itr)
             mean_r = 0
+            import pdb
+            pdb.set_trace()
             trainee_rewards = self.trainee.train_episodial(env, n_episodes*paired_to_calc, disable_tqdm=True) #train n_episodes per generated_env      
             antagonist_rewards = self.antagonist.train_episodial(env, n_episodes*paired_to_calc, disable_tqdm=True) #train n_episodes per generated_env
 
@@ -101,7 +103,7 @@ class PAIRED_Curriculum_no_regret(Curriculum_Manager):
             if anta_max_r > trainee_max_r:
                 teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
             else:
-                teacher_reward = (trainee_avg_r / self.max_episode_steps)- anta_avg_r
+                teacher_reward = (trainee_max_r / self.max_episode_steps)- anta_avg_r
 
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             reward_buffer_index = self.trainee.experience.reward_index

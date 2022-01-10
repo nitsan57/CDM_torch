@@ -20,7 +20,6 @@ class PAIRED_Curriculum(Curriculum_Manager):
         self.antagonist = deepcopy(trainee)
         super().__init__(abstract_env, trainee, save_dir)
         
-            
 
     def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
     # obs = self.abstract_env.clear_env()
@@ -118,10 +117,10 @@ class PAIRED_Curriculum(Curriculum_Manager):
             desciption = f"R:{np.round(mean_r/n_episodes, 2):08}"
             pbar.set_description(desciption)
             # train teacher_model
-            # if anta_max_r > trainee_max_r:
-            teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
-            # else:
-            #     teacher_reward = (trainee_max_r / self.max_episode_steps)- anta_avg_r
+            if anta_max_r > trainee_max_r:
+                teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
+            else:
+                teacher_reward = (trainee_max_r / self.max_episode_steps)- anta_avg_r
 
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             teacher_exp[reward_buffer_index][-1] = teacher_reward
