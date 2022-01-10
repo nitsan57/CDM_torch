@@ -46,7 +46,7 @@ def main(args):
     elif args.method == "paired_no_reg":
         teacher = PAIRED_Curriculum_no_regret(env, teacher_agent=teacher_agent ,trainee=p_agent)
 
-    p_rewards = teacher.teach(n_iters=args.iters, n_episodes=8)
+    p_rewards = teacher.teach(n_iters=args.iters, n_episodes=1)
 
 
 if __name__ == "__main__":
