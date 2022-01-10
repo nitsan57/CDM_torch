@@ -12,7 +12,7 @@ import operator
 class Curriculum_Entropy_Only(Curriculum_Manager):
     def __init__(self, abstract_env, trainee, teacher_agent, save_dir=None) -> None:
         if save_dir is None:
-            save_dir = "./results/PAIRED_Curriculum_no_regret_entropy/" + abstract_env.__class__.__name__ + "/"
+            save_dir = "./results/Curriculum_Entropy_Only/" + abstract_env.__class__.__name__ + "/"
         
         self.random_z_dim = (10,)
         self.teacher = teacher_agent
