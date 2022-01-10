@@ -14,7 +14,7 @@ import argparse
 def get_env(env_name):
     env = all_envs[env_name](random_reset_loc=True)
     n_actions = env.action_space.n
-    obs_shape = env.observation_space.shape
+    obs_shape = env.observation_space
     return env, obs_shape, n_actions
 
 
@@ -31,13 +31,12 @@ def main(args):
     device = utils.init_torch()
     env_name = args.env_name
     env, obs_shape, n_actions = get_env(env_name)
-    gen_obs_shape = env.get_generator_observation_space().shape
+    gen_obs_shape = env.get_generator_observation_space()
     gen_action_dim = env.get_generator_action_space().n
 
-    p_agent = DQN_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, exploration_epsilon=0.3, eps_dec=0, lr=0.001, model=rnn.RNN)
-    teacher_agent = DQN_Agent(gen_obs_shape, gen_action_dim, device=device, batch_size=64, max_mem_size=10**5, exploration_epsilon=1, eps_dec=0.0001, lr=0.001, model=rnn.RNN)
+    p_agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
+    teacher_agent = PPO_Agent(gen_obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
     
-
     if args.method == "random":
         teacher = Random_Curriculum(env ,trainee=p_agent)
     elif args.method == "paired":
