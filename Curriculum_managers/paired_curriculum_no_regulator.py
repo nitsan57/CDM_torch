@@ -7,7 +7,7 @@ from Agents.agent_utils import ParallelEnv
 from tqdm import tqdm
 import functools
 import operator
-from scipy.stats import entropy
+from scipy.stats import entropy as calc_entropy
 
 
 class Curriculum_Entropy_Only(Curriculum_Manager):
@@ -104,7 +104,7 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
             pbar.set_description(desciption)
 
             self.trainee.clear_stored_entropy()
-            max_possible_entropy = entropy(np.ones(self.trainee.n_actions)/len(self.trainee.n_actions))
+            max_possible_entropy = calc_entropy(np.ones(self.trainee.n_actions)/len(self.trainee.n_actions))
 
             teacher_reward =  trainee_avg_r - (max_possible_entropy - entropy)
 
