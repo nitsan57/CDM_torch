@@ -7,6 +7,7 @@ from Agents.agent_utils import ParallelEnv
 from tqdm import tqdm
 import functools
 import operator
+from scipy.stats import entropy
 
 
 class Curriculum_Entropy_Only(Curriculum_Manager):
@@ -103,8 +104,9 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
             pbar.set_description(desciption)
 
             self.trainee.clear_stored_entropy()
+            max_possible_entropy = entropy(np.ones(self.trainee.n_actions)/len(self.trainee.n_actions))
 
-            teacher_reward =  trainee_avg_r - entropy
+            teacher_reward =  trainee_avg_r - (max_possible_entropy - entropy)
 
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             reward_buffer_index = self.trainee.experience.reward_index
