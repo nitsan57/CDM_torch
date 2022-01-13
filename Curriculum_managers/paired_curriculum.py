@@ -65,6 +65,8 @@ class PAIRED_Curriculum(Curriculum_Manager):
         self.teacher.set_train_mode()
         self.trainee.set_train_mode()
         self.antagonist.set_train_mode()
+        self.trainee.set_store_entropy(True)
+
 
 
     def teach(self, n_iters, n_episodes=8):
@@ -119,7 +121,9 @@ class PAIRED_Curriculum(Curriculum_Manager):
             
             total_mean_r = trainee_mean_r/n_episodes
             all_mean_rewards.append(total_mean_r)
-            desciption = f"R:{np.round(total_mean_r, 2):08}"
+            entropy = self.get_trainne_entropy()
+            self.agent_train_entropy.append(entropy)
+            desciption = f"R:{np.round(total_mean_r, 2):08}, entropy: {entropy :01.4}"
             pbar.set_description(desciption)
 
             teacher_reward = (total_anta_max_r / self.max_episode_steps)- total_mean_r
@@ -132,7 +136,7 @@ class PAIRED_Curriculum(Curriculum_Manager):
             
             self.curr_iter = itr
             if itr % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts(itr)
+                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy})
             
 
         self.trainee.close_env_procs()

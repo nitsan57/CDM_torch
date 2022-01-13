@@ -5,8 +5,6 @@ import os
 import numpy as np
 from Agents.agent_utils import ParallelEnv
 from tqdm import tqdm
-import functools
-import operator
 
 
 class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
@@ -68,6 +66,8 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
         self.teacher.set_train_mode()
         self.trainee.set_train_mode()
         self.antagonist.set_train_mode()
+        self.trainee.set_store_entropy(True)
+
 
 
     def teach(self, n_iters, n_episodes=8):
@@ -100,19 +100,12 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
             
             all_mean_rewards.append(mean_r/n_episodes)
 
-            entropy = self.trainee.get_stored_entropy()
             
-            entropy = functools.reduce(operator.iconcat, entropy, [])
-            if entropy == []:
-                entropy = 1
-            else:
-                entropy = np.mean(entropy).astype(np.float32)
-
-
+            entropy = self.get_trainne_entropy()
+            self.agent_train_entropy.append(entropy)
             desciption = f"R:{np.round(mean_r/n_episodes, 2):08}, entropy: {entropy :01.4}"
             pbar.set_description(desciption)
 
-            self.trainee.clear_stored_entropy()
             teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r + (entropy_coeff * entropy)
 
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
@@ -126,7 +119,7 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
 
             self.curr_iter = itr
             if itr % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts(itr)
+                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy})
 
         self.trainee.close_env_procs()
         self.antagonist.close_env_procs()

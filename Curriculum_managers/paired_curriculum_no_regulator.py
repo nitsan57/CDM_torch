@@ -5,8 +5,6 @@ import os
 import numpy as np
 from Agents.agent_utils import ParallelEnv
 from tqdm import tqdm
-import functools
-import operator
 from scipy.stats import entropy as calc_entropy
 
 
@@ -62,6 +60,7 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
     def set_agents_to_train_mode(self):
         self.teacher.set_train_mode()
         self.trainee.set_train_mode()
+        self.trainee.set_store_entropy(True)
 
 
     def teach(self, n_iters, n_episodes=8):
@@ -75,7 +74,6 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
         paired_to_calc = 4
         
         number_of_envs_to_gen = 1
-        self.trainee.set_store_entropy(True)
         for itr in pbar:
             envs = self.create_envs(number_of_envs_to_gen, teacher_eval_mode=False)
             # in paired we create single env
@@ -91,19 +89,12 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
             
             all_mean_rewards.append(mean_r/n_episodes)
 
-            entropy = self.trainee.get_stored_entropy()
-            
-            entropy = functools.reduce(operator.iconcat, entropy, [])
-            if entropy == []:
-                entropy = 1
-            else:
-                entropy = np.mean(entropy).astype(np.float32)
 
-
+            entropy = self.get_trainne_entropy()
+            self.agent_train_entropy.append(entropy)
             desciption = f"R:{np.round(mean_r/n_episodes, 2):08}, entropy: {entropy :01.4}"
             pbar.set_description(desciption)
 
-            self.trainee.clear_stored_entropy()
             max_possible_entropy = calc_entropy(np.ones(self.trainee.n_actions)/self.trainee.n_actions)
 
             teacher_reward =  trainee_avg_r - (max_possible_entropy - entropy)
@@ -118,7 +109,7 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
 
             self.curr_iter = itr
             if itr % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts(itr)
+                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy})
 
         self.trainee.close_env_procs()
         return all_mean_rewards

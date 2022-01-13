@@ -4,6 +4,11 @@ import os
 import cv2 
 import os
 import pickle
+import numpy as np 
+import functools
+import operator
+from scipy.stats import entropy as calc_entropy
+
 
 class Curriculum_Manager(ABC):
 
@@ -15,6 +20,8 @@ class Curriculum_Manager(ABC):
         self.teacher_action_dim = abstract_env.get_generator_action_dim()
         self.teacher_max_steps = abstract_env.get_generator_max_steps()
         self.max_episode_steps = abstract_env.get_max_episode_steps()
+        self.agent_train_entropy = []
+
 
         self.device = self.trainee.device
         self.save_agent_iters = 100
@@ -34,20 +41,42 @@ class Curriculum_Manager(ABC):
             print(f'no files to load from')
             
 
-    def save_ckpts(self, i):
-        self.save_models(i)
-        self.save_meta_data(i)
+    def get_trainne_entropy(self):
+        entropy = self.trainee.get_stored_entropy()
+        entropy = functools.reduce(operator.iconcat, entropy, [])
+        if entropy == []:
+            entropy = 1
+        else:
+            entropy = np.mean(entropy).astype(np.float32)
+        self.trainee.clear_stored_entropy()
 
-    def save_meta_data(self, i):
+        return entropy
+
+    def save_ckpts(self, i, extra_meta_data=None):
+        self.save_models(i)
+        self.save_meta_data(i, extra_meta_data)
+
+
+    def save_meta_data(self, i, extra_data : dict=None):
+        data = {'curr_iter': i}
         file = open(self.meta_data_file, 'wb')
-        pickle.dump({'curr_iter': i}, file)
+        if extra_data is None:
+            pickle.dump(data, file)
+        else:
+            for k in extra_data:
+                # assert type(extra_data[k]) in [list], "bad type to save as extra data"
+                data[k] = extra_data[k]
+            pickle.dump(data, file)
+        
         file.close()
 
     def load_meta_data(self):
         file = open(self.meta_data_file, 'rb')
         meta_data = pickle.load(file)
         file.close()
-        self.curr_iter = meta_data['curr_iter']
+        # self.curr_iter = meta_data['curr_iter']
+        for k in meta_data:
+            setattr(self, k, meta_data[k])
 
     def set_verbose(self, verbose : bool):
         self.verbose = verbose
