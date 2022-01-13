@@ -83,7 +83,8 @@ class PAIRED_Curriculum(Curriculum_Manager):
             self.write_env(env, itr)
             env = ParallelEnv(env, number_episodes_for_regret_calc)
             n_steps_collected = 0
-            mean_r = 0
+            trainee_mean_r = 0
+            total_anta_max_r = 0
             for i in range(n_episodes):
                 trainee_rewards = self.trainee.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc) #collect a single episode experience - controled in num_env_parallel in each agent
                 antagonist_rewards = self.antagonist.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc)
@@ -97,6 +98,7 @@ class PAIRED_Curriculum(Curriculum_Manager):
                 trainee_max_r = np.max(trainee_rewards)
                 anta_avg_r = np.mean(antagonist_rewards)
                 anta_max_r = np.max(antagonist_rewards)
+                total_anta_max_r = max(anta_max_r, total_anta_max_r)
 
                 #Change agents update... as paired paper states..
                 # # update rewards:
@@ -113,13 +115,14 @@ class PAIRED_Curriculum(Curriculum_Manager):
                 self.antagonist.update_policy(*a_exp)
 
                 n_steps_collected += curr_steps_collected
-                mean_r +=trainee_avg_r
+                trainee_mean_r +=trainee_avg_r
             
-            all_mean_rewards.append(mean_r/n_episodes)
-            desciption = f"R:{np.round(mean_r/n_episodes, 2):08}"
+            total_mean_r = trainee_mean_r/n_episodes
+            all_mean_rewards.append(total_mean_r)
+            desciption = f"R:{np.round(total_mean_r, 2):08}"
             pbar.set_description(desciption)
 
-            teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r
+            teacher_reward = (total_anta_max_r / self.max_episode_steps)- total_mean_r
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             teacher_exp[reward_buffer_index][-1] = teacher_reward
             self.teacher.update_policy(*teacher_exp)

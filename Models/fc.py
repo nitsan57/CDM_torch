@@ -24,8 +24,8 @@ class FC(AbstractModel):
     
 
     def forward(self, x):
-        temp_k = list(x.keys())[0]
-        device = x[temp_k].data.get_device()
+        # temp_k = list(x.keys())[0]
+        # device = x[temp_k].data.get_device()
 
         res_dict = dict()
         for k in x:

@@ -15,7 +15,7 @@ class RNN(AbstractModel):
         self.reset() # init hidden state
         self.num_grus = num_grus
         self.l1 = torch.nn.ModuleDict({k:nn.GRU(input_size, hidden_dim, num_layers=num_grus, batch_first=True) for k,input_size in self.input_size_dict.items()})
-        self.concat_layer = nn.Sequential(nn.Linear(hidden_dim * self.num_inputs, hidden_dim), torch.nn.ReLU())
+        self.concat_layer = nn.Sequential(nn.Linear(hidden_dim * self.num_inputs, hidden_dim), torch.nn.Mish())
         self.l2 = nn.Linear(hidden_dim, out_shape)
         
 

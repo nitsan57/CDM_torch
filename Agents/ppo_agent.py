@@ -15,7 +15,7 @@ from torch.distributions import Categorical
 class PPO_Agent(RL_Agent):
     #TODO SUPPORT DIFFERNET OPTIMIZERS
     def __init__(self, obs_shape, n_actions, batch_size=32,
-                 max_mem_size=10000, lr=0.0001, discount_factor=0.99, num_epochs_per_update=4, num_parallel_envs=1, model=FC, device = 'cpu'):
+                 max_mem_size=10000, lr=0.0001, discount_factor=0.99, exploration_epsilon=0.0, num_epochs_per_update=4, num_parallel_envs=1, model=FC, device = 'cpu'):
         """ppo recomeneded setting is 1 parallel env"""
         if num_parallel_envs > 1:
             print("Warning: PPO is online algorithm and do not benefit from multiple envirnoments, please set num_parallel_envs =1, convargence issue might preset if not")
@@ -30,7 +30,9 @@ class PPO_Agent(RL_Agent):
         self.clip_decay =  1
         self.clip_param =  0.1
         #FOR PPO UPDATE:
+        self.exploration_epsilon = exploration_epsilon
         self.init_ppo_buffers()
+        self.losses = []
 
 
     def init_models(self):
@@ -104,8 +106,13 @@ class PPO_Agent(RL_Agent):
                 selected_actions = actions_dist.sample().detach().cpu().numpy().astype(np.int32)
 
             else:
-                action = actions_dist.sample()
-                log_probs = actions_dist.log_prob(action).detach().flatten().float()
+                if not self.eval_mode and np.random.random() < self.exploration_epsilon:
+                    action = torch.tensor(np.random.choice(self.action_space, num_obs).astype(np.int32), device=self.device)
+                    log_probs = actions_dist.log_prob(action).detach().flatten().float()
+                else:
+                    action = actions_dist.sample()
+                    log_probs = actions_dist.log_prob(action).detach().flatten().float()
+
                 values = self.critic_model(states).detach().flatten().float()
                 
                 for i in range(num_obs):
@@ -115,8 +122,7 @@ class PPO_Agent(RL_Agent):
                 if self.store_entropy:
                     
                     all_ent = actions_dist.entropy().detach().cpu().numpy()
-                    # import pdb
-                    # pdb.set_trace()
+                    
                     for i in range(self.num_parallel_envs):
                         self.stored_entropy[i].append(all_ent[i])
 
@@ -197,8 +203,12 @@ class PPO_Agent(RL_Agent):
 
     def update_policy_reg(self):
         states, actions, rewards, dones, next_states, values, logits = self._get_ppo_experiences()
-        returns = calc_returns(rewards, dones, self.discount_factor)
+        # returns = calc_returns(rewards, dones, self.discount_factor)
+
+
         advantages = calc_gaes(rewards, values, dones, self.discount_factor)
+        returns = advantages + values
+
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-10)
         self.init_ppo_buffers()
 
@@ -235,7 +245,7 @@ class PPO_Agent(RL_Agent):
                 critic_loss = self.criterion(values, torch.unsqueeze(batched_returns, 1))
                 kl_div = (old_log_probs - new_log_probs).mean()
 
-                self.critic_optimizer.zero_grad()
+                self.critic_optimizer.zero_grad(set_to_none=True)
                 critic_loss.backward()
                 avg_c_loss  += critic_loss.item()
                 self.critic_optimizer.step()
@@ -243,9 +253,9 @@ class PPO_Agent(RL_Agent):
                 if torch.abs(kl_div) > 0.01:
                     kl_div_bool = True
                     break
-                self.actor_optimizer.zero_grad()
+                self.actor_optimizer.zero_grad(set_to_none=True)
                 actor_loss.backward()
-                # nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
+                nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
                 self.actor_optimizer.step()
             if kl_div_bool:
                 break
@@ -253,6 +263,7 @@ class PPO_Agent(RL_Agent):
 
 
     def update_policy_rnn(self, *exp):
+        self.reset_rnn_hidden()
         if len(exp) == 0:
             states, actions, rewards, dones, next_states, values, logits = self._get_ppo_experiences()
         else:
@@ -260,9 +271,11 @@ class PPO_Agent(RL_Agent):
 
         # if self.num_parallel_envs == 1:
         #     relevant_indices_list = np.arange(0, len(states), self.batch_size)        
-        returns = calc_returns(rewards, dones, self.discount_factor)
-
+        # returns = calc_returns(rewards, dones, self.discount_factor)
         advantages = calc_gaes(rewards, values, dones, self.discount_factor)
+
+        returns = advantages + values
+
 
         # returns = (returns - returns.mean()) / (returns.std() + 1e-10)
         advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-10)
@@ -275,6 +288,7 @@ class PPO_Agent(RL_Agent):
 
         seq_lens, sorted_data_sub_indices = self.get_seqs_indices_for_pack(done_indices)
         pakced_states = self.pack_from_done_indices(states, seq_lens, done_indices)
+        # pakced_states = states[sorted_data_sub_indices]
         sorted_actions = actions[sorted_data_sub_indices]
         sorted_returns = returns[sorted_data_sub_indices]
         sorted_advantage = advantages[sorted_data_sub_indices]
@@ -283,7 +297,6 @@ class PPO_Agent(RL_Agent):
 
         
         entropy_coeff = 0.001
-        avg_c_loss = 0
         num_samples = len(states)
         num_grad_updates = num_samples // self.batch_size
         for e in range(self.num_epochs_per_update):
@@ -311,18 +324,22 @@ class PPO_Agent(RL_Agent):
             surr2 = torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param)
             actor_loss  = - ((torch.min(surr1, surr2) * sorted_advantage).mean()) - entropy_coeff * entropy
             critic_loss = self.criterion(values, torch.unsqueeze(sorted_returns, 1))
+            
             kl_div = (old_log_probs - new_log_probs).mean()
 
-            self.critic_optimizer.zero_grad()
+            self.critic_optimizer.zero_grad(set_to_none=True)
+            self.losses.append(critic_loss.item())
+
             critic_loss.backward()
-            avg_c_loss  += critic_loss.item()
             self.critic_optimizer.step()
 
-            if torch.abs(kl_div) > 0.01:
-                continue
-            self.actor_optimizer.zero_grad()
+                
+            if torch.abs(kl_div) > 0.01:  
+                break
+            self.actor_optimizer.zero_grad(set_to_none=True)
+            
             actor_loss.backward()
-            # nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
+            nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
             self.actor_optimizer.step()
 
 

@@ -13,6 +13,9 @@ from enum import IntEnum, Enum
 from scipy.spatial.distance import cityblock
 from .base_curriculum_env import Base_Env
 from .environments import register_env
+import cv2
+
+
 
 class RGBCOLORS_MINUS_50:
     BLACK = [0, 0, 0]  # -50
@@ -23,6 +26,7 @@ class RGBCOLORS_MINUS_50:
     BLUE = [0, 94, 205]  #
     MAGENTA = [205, 0, 205]  # -50
     CYAN = [0, 205, 205]  # -50
+    BROWN = [155, 77, 0]  # -50
 
 
 MAP = [
@@ -40,9 +44,9 @@ PASSENGER_IN_TAXI = -1
 STEP_REWARD, PICKUP_REWARD, BAD_PICKUP_REWARD, DROPOFF_REWARD, BAD_DROPOFF_REWARD, REFUEL_REWARD, BAD_REFUEL_REWARD, NO_FUEL_REWARD = "step", "good_pickup", "bad_pickup", "good_dropoff", "bad_dropoff", "good_refuel", "bad_refuel", "no_fuel"
 MAX_FUEL = 50
 REWARD_DICT = {STEP_REWARD: -1,
-               PICKUP_REWARD: 0, BAD_PICKUP_REWARD: -10,
-               DROPOFF_REWARD: 40, BAD_DROPOFF_REWARD: -10,
-               REFUEL_REWARD: 10, BAD_REFUEL_REWARD: -10, NO_FUEL_REWARD: -100}
+               PICKUP_REWARD: 0, BAD_PICKUP_REWARD: -1,
+               DROPOFF_REWARD: 4, BAD_DROPOFF_REWARD: -1,
+               REFUEL_REWARD: 1, BAD_REFUEL_REWARD: -1, NO_FUEL_REWARD: -10}
 
 ACTIONS = [SOUTH, NORTH, EAST, WEST, PICKUP, DROPOFF, REFUEL]
 
@@ -209,7 +213,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
     def init_after_adverserial(self):
         self.last_action = None
         self.passengers_locations, self.destination_location, self.fuel_station = self.get_info_from_map()
-        self.taxi_fuel = MAX_FUEL
+        self.taxi_fuel = MAX_FUEL-1
         self.num_states = 5 * 5 * 1 * 2 * MAX_FUEL  # rows, cols, ONE DEST LOC, 2 PASSANGER POS        #25*4*5 * MAX_FUEL
 
         self.initial_state_distrib = np.zeros(self.num_states)
@@ -253,6 +257,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
                                     if pass_idx < self.passenger_in_taxi and taxi_loc == self.passengers_locations[
                                             pass_idx]:
                                         new_pass_idx = self.passenger_in_taxi
+                                        reward = REWARD_DICT[PICKUP_REWARD]
                                     else:  # passenger not at location
                                         reward = REWARD_DICT[BAD_PICKUP_REWARD]
                                 elif action == DROPOFF:  # dropoff
@@ -266,9 +271,9 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
                                     else:  # dropoff at wrong location
                                         reward = REWARD_DICT[BAD_DROPOFF_REWARD]
                                 elif action == REFUEL:
-                                    if taxi_loc == self.fuel_station and fuel >= MAX_FUEL -3:
+                                    if taxi_loc == self.fuel_station and fuel <= 5:
                                         reward = REWARD_DICT[REFUEL_REWARD]
-                                        fuel = MAX_FUEL - 1
+                                        fuel = MAX_FUEL-1
                                     else:
                                         reward = REWARD_DICT[BAD_REFUEL_REWARD]
                                 elif fuel == 0:
@@ -279,8 +284,8 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
                                 self.P[state][action].append((1.0, new_state, reward, done))
                                 fuel = init_fuel
 
-        self.init_s = self.encode(self.init_taxi_row, self.init_taxi_col, 0, 0, (MAX_FUEL - 1))
-        if self.is_possible_initial_state(0, 0, self.init_taxi_row, self.init_taxi_col, MAX_FUEL - 1):
+        self.init_s = self.encode(self.init_taxi_row, self.init_taxi_col, 0, 0, (MAX_FUEL-1))
+        if self.is_possible_initial_state(0, 0, self.init_taxi_row, self.init_taxi_col, MAX_FUEL-1):
             self.initial_state_distrib[self.init_s] = 1
 
         else:
@@ -423,7 +428,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
                         num_objs_on_cell += 1
                         cell_color += RGBCOLORS_MINUS_50.YELLOW
                     if char == "G":
-                        cell_color += RGBCOLORS_MINUS_50.MAGENTA
+                        cell_color += RGBCOLORS_MINUS_50.BROWN
                         num_objs_on_cell += 1
                     elif char == "Y" and taxi_status == "empty":
                         cell_color += RGBCOLORS_MINUS_50.BLUE
@@ -448,7 +453,8 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
 
     def render(self, mode='human'):
         if mode == "rgb_array":
-            return self.get_map_image()
+
+            return cv2.resize((self.get_map_image()*255).astype(np.uint8),dsize=(220, 140), interpolation=cv2.INTER_NEAREST)
 
         outfile = StringIO() if mode == 'ansi' else sys.stdout
 
@@ -798,9 +804,18 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
             return self.init_print_mode()
 
     def dummy_init(self):
+        self.clear_env()
         for i in range(13):
             self.step_generator(2 * i)
         self.reset_agent()
+
+
+    def reset_random(self):
+        self.clear_env()
+        for i in range(13):
+            loc = np.random.randint(self.get_generator_action_dim())
+            self.step_generator(loc)
+        return self.reset()
 
 
     def init_from_vec(self, vec):

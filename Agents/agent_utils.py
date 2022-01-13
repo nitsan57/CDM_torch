@@ -68,6 +68,10 @@ class ObsShapeWraper(dict):
 class ObsWraper:
     def __init__(self, data=None, keep_dims=False, tensors=False):
         self.dtype=None
+
+        if np.issubdtype(type(data), np.integer):
+            data = np.array(data).reshape(1,1).astype(np.float32)
+
         if data is None:
             return self._init_from_none_()
         if type(data) == list or type(data) == tuple:
@@ -100,7 +104,7 @@ class ObsWraper:
                 if keep_dims:
                     to_add = np.array(data)
                 else:
-                    to_add = np.array(data)[np.newaxis,:]
+                    to_add = np.expand_dims(data, axis=0)
                 self.data = {'data': to_add}
                 self.len = len(to_add)
 
@@ -108,17 +112,19 @@ class ObsWraper:
     def init_from_list_np_obs(self, obs_list):
         self.data = {}
         self.len = 0
+        
+
         keys = list(obs_list[0].keys())
         for k in keys:
             res = []
             for obs in obs_list:
-                res.append(obs[k])
+                res.append(np.array(obs[k]))
             res = np.array(res)
-            if res.shape[0] != 1 and res.shape[1] == 1:
+            if res.shape[0] != 1 and res.shape[1] == 1 and len(res.shape) > 2:
                 self.data[k] = np.squeeze(res, axis=1)
             else:
                 self.data[k] = res
-                
+        
         self.len = len(obs_list)
 
     
@@ -176,9 +182,9 @@ class ObsWraper:
         
         for k, v in self.data.items():
             if np.issubdtype(type(key), np.integer):
-                temp_dict[k] = v.__getitem__(key).clone().detach().requires_grad_(True).unsqueeze() 
+                temp_dict[k] = v.__getitem__(key).clone().detach().requires_grad_(True).unsqueeze().float()
             else:
-                temp_dict[k] = v.__getitem__(key).clone().detach().requires_grad_(True)
+                temp_dict[k] = v.__getitem__(key).clone().detach().requires_grad_(True).float()
         return ObsWraper(temp_dict, tensors=True)
 
 
@@ -209,7 +215,7 @@ class ObsWraper:
     def get_as_tensors(self, device='cpu'):
         temp_dict = {}
         for k, v in self.data.items():
-            temp_dict[k] = torch.tensor(v).float().to(device)
+            temp_dict[k] = torch.tensor(v).float().to(device).float()
         return ObsWraper(temp_dict, keep_dims=True, tensors=True)
 
 
@@ -299,8 +305,8 @@ class ExperienceReplay:
                 if i == self.states_index or i == self.next_states_index:
                     self.all_buffers[i] = self.all_buffers[i].np_roll(-done_index - 1, axis=0, inplace=False)
                 else:
-                    self.all_buffers[i] = np.roll(
-                        self.all_buffers[i], -done_index - 1, axis=0)
+                    self.all_buffers[i] = np.roll(self.all_buffers[i], -done_index - 1, axis=0)
+            
 
             self.curr_size -= (done_index+1)
 
@@ -362,6 +368,10 @@ class ExperienceReplay:
             "return last episode"
 
             dones = np.where(self.all_buffers[self.dones_index] == True)[0]
+            import matplotlib.pyplot as plt
+            # if any(self.all_buffers[self.reward_index] == 4) and len(self.experience) > 90000:
+            #     import pdb
+            #     pdb.set_trace()
             if len(dones) > 1:
                 # exclude the latest done sample
                 first_sample_idx = dones[-2] + 1
@@ -378,10 +388,11 @@ class ExperienceReplay:
         return last_samples
 
     def get_buffers_at(self, indices):
-        buffers_at = (buff[indices] for buff in self.all_buffers)
+        buffers_at = tuple(buff[indices] for buff in self.all_buffers)
         return buffers_at
 
     def sample_random_batch(self, sample_size):
+
         indices = np.random.choice(self.curr_size, sample_size, replace=False)
         return self.get_buffers_at(indices)
 
@@ -395,9 +406,10 @@ def worker(env, conn, idx):
 
         if (cmd == "step"):
             next_state, reward, done, _ = env.step(msg)
+
+            conn.send((next_state, reward, done, _))
             if done:
                 next_state = env.reset()
-            conn.send((next_state, reward, done, _))
 
         elif (cmd == "reset"):
             next_state = env.reset()
@@ -542,7 +554,14 @@ class SingleEnv_m():
         return [self.env.reset()]
 
     def step(self, actions):
-        next_states, rewards, dones, _ = self.env.step(actions)
+        action = None
+        try:
+          iter(actions)
+          action = actions[0]
+        except TypeError:
+          action = actions
+
+        next_states, rewards, dones, _ = self.env.step(action)
         next_states = next_states[np.newaxis, :]
         rewards = np.array(rewards).reshape(1, 1)
         dones = np.array(dones).reshape(1, 1)

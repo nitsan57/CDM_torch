@@ -1,4 +1,3 @@
-from torch.nn.utils.rnn import pad_sequence
 from tqdm import tqdm
 from abc import ABC, abstractmethod
 from .agent_utils import ExperienceReplay, ObsShapeWraper, ObsWraper
@@ -7,10 +6,10 @@ import functools
 import operator
 from .agent_utils import ParallelEnv
 import torch
-from time import time
 import torch.nn.functional as F
 from torch.distributions import Categorical
-
+torch.autograd.profiler.profile(False)
+torch.autograd.profiler.emit_nvtx(False)
 
 class RL_Agent(ABC):
     TRAIN = 0
@@ -167,6 +166,10 @@ class RL_Agent(ABC):
             if len(self.experience) < self.batch_size:
                 # collect more sampels if not enough..
                 continue
+
+            if self.rnn:
+                self.reset_rnn_hidden()
+            
             self.update_policy()
             if self.rnn:
                 self.reset_rnn_hidden()
@@ -208,6 +211,7 @@ class RL_Agent(ABC):
         seq_lens = all_lens[seq_indices]
         return seq_lens, sorted_data_sub_indices
 
+
     def pack_from_done_indices(self, data, sorted_seq_lens, done_indices):
         """returns pakced obs"""
         assert np.all(np.sort(sorted_seq_lens)[::-1] == sorted_seq_lens)
@@ -247,13 +251,12 @@ class RL_Agent(ABC):
     def pre_process_obs_for_act(self, observations, num_obs):
         if type(observations) != ObsWraper:
             observations = ObsWraper(observations)
-
         
         len_obs = len(observations)
         if num_obs != len_obs and num_obs == 1:
             # BATCH=1
             len_obs = 1
-            observations = observations[np.newaxis, :]
+            observations = observations = observations[np.newaxis, :] #np.expand_dims(observations, axis=0) 
             if self.rnn:
                 # seq len = 1, single state eval
                 observations = observations[np.newaxis, :]
@@ -266,7 +269,7 @@ class RL_Agent(ABC):
             states = self.pack_sorted_data(observations, seq_lens)
         else:
             for k in observations:
-                states[k] = torch.from_numpy(observations[k]).to(self.device)
+                states[k] = torch.from_numpy(observations[k]).to(self.device).float()
         return states
 
     def return_correct_actions_dim(self, selected_actions, num_obs):
@@ -282,7 +285,6 @@ class RL_Agent(ABC):
     def collect_episode_obs(self, env, max_episode_len=None, num_to_collect=None, env_funcs={"step": "step", "reset": "reset"}, additional_const_features={}):
         # supports run on different env api
         if type(env) != ParallelEnv:
-            # env = ParallelEnv(env, num_to_collect)
             if self.env is None:
                 env = ParallelEnv(env, self.num_parallel_envs)
                 self.env = env
@@ -319,6 +321,8 @@ class RL_Agent(ABC):
         dones = [[] for i in range(self.num_parallel_envs)]
 
         max_episode_steps = 0
+
+
         while not all(env_dones):
             relevant_indices = np.where(env_dones == False)[0].astype(np.int32)
 
@@ -332,14 +336,26 @@ class RL_Agent(ABC):
                 next_obs[k] = np.array([additional_const_features[k]] * len(next_obs))
 
             for i in relevant_indices:
+
                 actions[i].append(current_actions[i])
                 next_observations[i].append(next_obs[i])
                 rewards[i].append(reward[i])
                 dones[i].append(done[i])
                 env_dones[i] = done[i]
 
+                # if i == 0:
+                    # import pdb
+                    # pdb.set_trace()
+                    # import matplotlib.pyplot as plt
+
                 max_episode_steps += 1
                 if done[i]:
+                    # import matplotlib.pyplot as plt                   
+                    #plt.imshow(observations[i][-1]['data'][0])
+
+                    # if reward[i] == 4:
+                    #     import pdb
+                    #     pdb.set_trace()
                     continue
 
                 if episode_len_exceeded(max_episode_steps):
@@ -351,10 +367,12 @@ class RL_Agent(ABC):
                 observations[i].append(next_obs[i])
 
             latest_observations = [observations[i][-1] for i in range(self.num_parallel_envs)]
+            
             latest_observations = ObsWraper(latest_observations)
         if self.rnn:
             self.reset_rnn_hidden()
 
+        # import pdb
         observations = functools.reduce(operator.iconcat, observations, [])
         actions = functools.reduce(operator.iconcat, actions, [])
         rewards_x = functools.reduce(operator.iconcat, rewards, [])

@@ -21,10 +21,10 @@ class DQN_Agent(RL_Agent):
         self.criterion = nn.MSELoss().to(device)
         self.init_models()
 
-        self.target_update_time = 100 # update target every 100 learning steps
+        self.target_update_time = 1000 # update target every 100 learning steps
         self.target_update_counter = 0
         
-        # self.losses =[]
+        self.losses =[]
 
     def init_models(self):
         self.Q_model = self.model(input_shape=self.obs_shape, out_shape=self.n_actions).to(self.device)
@@ -67,7 +67,7 @@ class DQN_Agent(RL_Agent):
 
     def act(self, observations, num_obs=1):
         """batched observation only!"""
-        if not self.eval_mode and np.random.random() > self.exploration_epsilon:
+        if not self.eval_mode and np.random.random() < self.exploration_epsilon:
             selected_actions = np.random.choice(self.action_space, num_obs).astype(np.int32)
         else:
             states = self.pre_process_obs_for_act(observations, num_obs)
@@ -96,17 +96,24 @@ class DQN_Agent(RL_Agent):
         """Get a mix of samples, including all last episode- makes sure we dont miss any seen states"""
         if random_samples:
             latest_experience_batch = self.experience.get_last_episodes(self.num_parallel_envs)
+
             last_episode_len = len(latest_experience_batch[0])
             #50% last episodes, 50% random
             random_experience_batch = self.experience.sample_random_batch(last_episode_len)
             observations, actions, rewards, dones, next_observations = random_experience_batch
+
             latest_observations, latest_actions, latest_rewards, latest_dones, latest_next_observations = latest_experience_batch
+            import matplotlib.pyplot as plt
+            # if any(latest_rewards == 4) and len(self.experience) > 90000:
+            #     import pdb
+            #     pdb.set_trace()
+
             rand_perm = torch.randperm(2*len(observations))
             observations = observations.np_cat(latest_observations)[rand_perm]
             actions = np.concatenate([actions, latest_actions])[rand_perm]
             rewards = np.concatenate([rewards, latest_rewards])[rand_perm]
             dones = np.concatenate([dones, latest_dones])[rand_perm]
-            next_observations = next_observations.np_cat(latest_next_observations)[rand_perm]
+            next_observations = next_observations.np_cat(latest_next_observations)[rand_perm]           
 
         else:
             observations, actions, rewards, dones, next_observations = self.experience.get_last_episodes(self.num_parallel_envs)
@@ -124,34 +131,40 @@ class DQN_Agent(RL_Agent):
 
     def update_policy_reg(self, *exp):
         if len(exp) == 0:
-            states, actions, rewards, dones, next_states = self._get_dqn_experiences(random_samples=(not self.rnn))
+            states, actions, rewards, dones, next_states = self._get_dqn_experiences(random_samples=True) #self._get_dqn_experiences(random_samples=(not self.rnn))
         else:
             states, actions, rewards, dones, next_states = exp
 
         all_samples_len = len(states)
 
         for b in range(0,all_samples_len, self.batch_size):
-            batch_states = states[b:b+self.batch_size]
+            batched_states = states[b:b+self.batch_size]
             # batch_states = states.slice_tensors(slice(b,b+self.batch_size))
             batched_actions = actions[b:b+self.batch_size]
             batched_next_states = next_states[b:b+self.batch_size]
             # batched_next_states = next_states.slice_tensors(slice(b,b+self.batch_size))
             batched_rewards = rewards[b:b+self.batch_size]
             batched_dones = dones[b:b+self.batch_size]
-            v_table = self.Q_model(batch_states)
+            v_table = self.Q_model(batched_states)
             # only because last batch is smaller
-            real_batch_size = len(batch_states) 
+            real_batch_size = len(batched_states) 
             q_values = v_table[np.arange(real_batch_size), batched_actions]
             with torch.no_grad():
                 q_next = self.target_Q_model(batched_next_states).detach().max(1)[0]
 
+            import matplotlib.pyplot as plt
+            # if any(batched_rewards == 4) and len(self.experience) > 0:
+            #     import pdb
+            #     pdb.set_trace()
+                # plt.imshow(batched_states['data'][0].detach().cpu())
+                # plt.imshow(batched_next_states['data'][0].detach().cpu())
             expected_next_values = batched_rewards + (1-batched_dones) * self.discount_factor * q_next
 
             loss = self.criterion(q_values, expected_next_values)
 
             # Optimize the model
-            self.optimizer.zero_grad()
-            # self.losses.append(loss.item())
+            self.optimizer.zero_grad(set_to_none=True)
+            self.losses.append(loss.item())
             loss.backward()
             self.optimizer.step()
 
@@ -191,7 +204,7 @@ class DQN_Agent(RL_Agent):
             loss = self.criterion(q_values, expected_next_values)
 
             # Optimize the model
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad(set_to_none=True)
             # self.losses.append(loss.item())
             loss.backward()
             self.optimizer.step()
