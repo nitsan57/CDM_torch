@@ -15,7 +15,7 @@ from torch.distributions import Categorical
 class PPO_Agent(RL_Agent):
     #TODO SUPPORT DIFFERNET OPTIMIZERS
     def __init__(self, obs_shape, n_actions, batch_size=64,
-                 max_mem_size=10000, lr=0.0001, discount_factor=0.99, exploration_epsilon=0.0, entropy_coeff=0.0, num_epochs_per_update=4, num_parallel_envs=1, model=FC, device = 'cpu'):
+                 max_mem_size=10000, lr=0.0001, discount_factor=0.99, exploration_epsilon=0.0, entropy_coeff=0.001, num_epochs_per_update=4, num_parallel_envs=1, model=FC, device = 'cpu'):
         """ppo recomeneded setting is 1 parallel env (with non RNN envs, bacuase of too many gradients updates)"""
         if num_parallel_envs > 1 and not model.is_rnn:
             print("Warning: PPO is online algorithm and do not benefit from multiple envirnoments, please set num_parallel_envs =1, convargence issue might preset if not")

@@ -69,9 +69,11 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
         pbar = tqdm(range(self.curr_iter, n_iters))
         number_episodes_for_regret_calc = 4 # same as paired paper
         self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
-        entropy_coeff = 0.001
+
+        entropy_scale = 1
 
         paired_to_calc = 4
+        max_reward = 0
         
         number_of_envs_to_gen = 1
         for itr in pbar:
@@ -84,6 +86,8 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
             trainee_rewards = self.trainee.train_episodial(env, n_episodes*paired_to_calc, disable_tqdm=True) #train n_episodes per generated_env
 
             trainee_avg_r = np.mean(trainee_rewards)
+            trainee_max_r = np.max(trainee_rewards)
+            max_reward = max(np.max(trainee_rewards), max_reward)
 
             mean_r +=trainee_avg_r
             
@@ -96,8 +100,10 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
             pbar.set_description(desciption)
 
             max_possible_entropy = calc_entropy(np.ones(self.trainee.n_actions)/self.trainee.n_actions)
+            normilized_inv_entropy = (max_possible_entropy - entropy) / max_possible_entropy # 1 represnts agent is sure of its move (1-entorpy)
+            rescaled_trainee_reward = trainee_max_r / max_reward
 
-            teacher_reward =  trainee_avg_r - (max_possible_entropy - entropy)
+            teacher_reward =  rescaled_trainee_reward - normilized_inv_entropy
 
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             reward_buffer_index = self.trainee.experience.reward_index
