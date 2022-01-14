@@ -24,7 +24,7 @@ class DQN_Agent(RL_Agent):
         self.target_update_time = 1000 # update target every 100 learning steps
         self.target_update_counter = 0
         
-        self.losses =[]
+        # self.losses =[]
 
     def init_models(self):
         self.Q_model = self.model(input_shape=self.obs_shape, out_shape=self.n_actions).to(self.device)
@@ -164,7 +164,7 @@ class DQN_Agent(RL_Agent):
 
             # Optimize the model
             self.optimizer.zero_grad(set_to_none=True)
-            self.losses.append(loss.item())
+            # self.losses.append(loss.item())
             loss.backward()
             self.optimizer.step()
 

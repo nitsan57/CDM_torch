@@ -15,13 +15,14 @@ from torch.distributions import Categorical
 class PPO_Agent(RL_Agent):
     #TODO SUPPORT DIFFERNET OPTIMIZERS
     def __init__(self, obs_shape, n_actions, batch_size=64,
-                 max_mem_size=10000, lr=0.0001, discount_factor=0.99, exploration_epsilon=0.0, num_epochs_per_update=4, num_parallel_envs=1, model=FC, device = 'cpu'):
+                 max_mem_size=10000, lr=0.0001, discount_factor=0.99, exploration_epsilon=0.0, entropy_coeff=0.0, num_epochs_per_update=4, num_parallel_envs=1, model=FC, device = 'cpu'):
         """ppo recomeneded setting is 1 parallel env (with non RNN envs, bacuase of too many gradients updates)"""
         if num_parallel_envs > 1 and not model.is_rnn:
             print("Warning: PPO is online algorithm and do not benefit from multiple envirnoments, please set num_parallel_envs =1, convargence issue might preset if not")
 
         super().__init__(obs_shape, n_actions, max_mem_size, batch_size, num_parallel_envs, model=model, lr=lr, device=device) # inits 
         # self.losses = []
+        self.entropy_coeff = entropy_coeff
         self.discount_factor = discount_factor
         self.action_space = [i for i in range(n_actions)]
         self.criterion = nn.MSELoss().to(device)
@@ -32,7 +33,6 @@ class PPO_Agent(RL_Agent):
         #FOR PPO UPDATE:
         self.exploration_epsilon = exploration_epsilon
         self.init_ppo_buffers()
-        self.losses = []
 
 
     def init_models(self):
@@ -55,7 +55,7 @@ class PPO_Agent(RL_Agent):
         checkpoint = torch.load(f_name)
         self.policy_nn.load_state_dict(checkpoint['policy_nn'])
         self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer'])
-        self.actor_model = lambda x : Categorical(logits=F.softmax(self.policy_nn(x), dim=1))
+        self.actor_model = lambda x : Categorical(logits=F.log_softmax(self.policy_nn(x), dim=1))
         self.critic_model.load_state_dict(checkpoint['critic_model'])
         self.critic_optimizer.load_state_dict(checkpoint['critic_optimizer'])
 
@@ -213,7 +213,7 @@ class PPO_Agent(RL_Agent):
         self.init_ppo_buffers()
 
         all_samples_len = len(states)
-        entropy_coeff = 0.001
+        entropy_coeff = self.entropy_coeff
         avg_c_loss = 0
         for e in range(self.num_epochs_per_update):
             indices_perm = torch.randperm(len(returns))
@@ -328,7 +328,7 @@ class PPO_Agent(RL_Agent):
             kl_div = (old_log_probs - new_log_probs).mean()
 
             self.critic_optimizer.zero_grad(set_to_none=True)
-            self.losses.append(critic_loss.item())
+            # self.losses.append(critic_loss.item())
 
             critic_loss.backward()
             self.critic_optimizer.step()
