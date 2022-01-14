@@ -84,7 +84,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
             see_through_walls=True,  # Set this to True for maximum speed
             competitive=True,
         )
-        self.param_vector = []
+        # self.param_vector = []
         # Metrics
         self.reset_metrics()
 
@@ -320,7 +320,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
 
         if loc >= self.adversary_action_dim:
             raise ValueError('Position passed to step_generator is outside the grid.')
-        self.param_vector.append(loc)
+        # self.param_vector.append(loc)
         # Add offset of 1 for outside walls
         x = int(loc % (self.width - 2)) + 1
         y = int(loc / (self.width - 2)) + 1
