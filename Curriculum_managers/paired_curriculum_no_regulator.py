@@ -1,3 +1,4 @@
+from operator import concat
 from .curriculum_manager import Curriculum_Manager
 from copy import deepcopy
 import torch
@@ -101,7 +102,7 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
 
             max_possible_entropy = calc_entropy(np.ones(self.trainee.n_actions)/self.trainee.n_actions)
             normilized_inv_entropy = (max_possible_entropy - entropy) / max_possible_entropy # 1 represnts agent is sure of its move (1-entorpy)
-            rescaled_trainee_reward = trainee_max_r / max_reward
+            rescaled_trainee_reward = trainee_max_r / (max_reward+1e-8)
 
             teacher_reward =  rescaled_trainee_reward - normilized_inv_entropy
 
