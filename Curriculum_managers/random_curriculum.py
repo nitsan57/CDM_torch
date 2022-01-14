@@ -5,17 +5,7 @@ import os
 from Agents.agent_utils import ParallelEnv
 from tqdm import tqdm
 
-# from functools import wraps
-# from time import time
-# def timing(f):
-#     @wraps(f)
-#     def wrap(*args, **kw):
-#         ts = time()
-#         result = f(*args, **kw)
-#         te = time()
-#         print('func:%r args:[%r, %r] took: %2.4f sec' % (f.__name__, args, kw, te-ts))
-#         return result
-#     return wrap
+
 
 class Random_Curriculum(Curriculum_Manager):
 

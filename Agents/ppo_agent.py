@@ -11,17 +11,6 @@ from .agent_utils import calc_returns, calc_gaes
 from .agent import RL_Agent
 from torch.distributions import Categorical
 
-from functools import wraps
-from time import time
-def timing(f):
-    @wraps(f)
-    def wrap(*args, **kw):
-        ts = time()
-        result = f(*args, **kw)
-        te = time()
-        print ('func:%r took: %2.4f sec' % (f.__name__, te-ts))
-        return result
-    return wrap
 
 
 
@@ -274,7 +263,6 @@ class PPO_Agent(RL_Agent):
                 break
         # self.losses.append(avg_c_loss / (self.batch_size*self.num_epochs_per_update))
 
-    @timing
     def update_policy_rnn(self, *exp):
         self.reset_rnn_hidden()
         if len(exp) == 0:
