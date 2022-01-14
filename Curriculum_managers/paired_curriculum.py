@@ -83,7 +83,7 @@ class PAIRED_Curriculum(Curriculum_Manager):
             # in paired we create single env
             env = envs[0]
             self.write_env(env, itr)
-            env = ParallelEnv(env, number_episodes_for_regret_calc)
+            # env = ParallelEnv(env, number_episodes_for_regret_calc)
             n_steps_collected = 0
             trainee_mean_r = 0
             total_anta_max_r = 0

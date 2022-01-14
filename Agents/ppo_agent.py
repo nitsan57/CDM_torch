@@ -11,6 +11,19 @@ from .agent_utils import calc_returns, calc_gaes
 from .agent import RL_Agent
 from torch.distributions import Categorical
 
+from functools import wraps
+from time import time
+def timing(f):
+    @wraps(f)
+    def wrap(*args, **kw):
+        ts = time()
+        result = f(*args, **kw)
+        te = time()
+        print ('func:%r took: %2.4f sec' % (f.__name__, te-ts))
+        return result
+    return wrap
+
+
 
 class PPO_Agent(RL_Agent):
     #TODO SUPPORT DIFFERNET OPTIMIZERS
@@ -261,7 +274,7 @@ class PPO_Agent(RL_Agent):
                 break
         # self.losses.append(avg_c_loss / (self.batch_size*self.num_epochs_per_update))
 
-
+    @timing
     def update_policy_rnn(self, *exp):
         self.reset_rnn_hidden()
         if len(exp) == 0:
@@ -269,15 +282,11 @@ class PPO_Agent(RL_Agent):
         else:
             states, actions, rewards, dones, next_states, values, logits = exp
 
-        # if self.num_parallel_envs == 1:
-        #     relevant_indices_list = np.arange(0, len(states), self.batch_size)        
-        # returns = calc_returns(rewards, dones, self.discount_factor)
         advantages = calc_gaes(rewards, values, dones, self.discount_factor)
 
         returns = advantages + values
 
 
-        # returns = (returns - returns.mean()) / (returns.std() + 1e-10)
         advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-10)
 
         self.init_ppo_buffers()
@@ -306,16 +315,6 @@ class PPO_Agent(RL_Agent):
 
             entropy = dist.entropy().mean()
             new_log_probs = dist.log_prob(sorted_actions)        
-
-            # # #"------------------------------"        
-            # entropy2 = self.get_stored_entropy()
-            # entropy2 = functools.reduce(operator.iconcat, entropy2, [])
-            # if entropy2 == []:
-            #     entropy2 = 1
-            # else:
-            #     entropy2 = np.mean(entropy2).astype(np.float32)
-            # print(entropy2)
-            # #----------------------
 
             old_log_probs = sorted_logits # from acted policy
 

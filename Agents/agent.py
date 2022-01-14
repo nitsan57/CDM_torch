@@ -11,6 +11,7 @@ from torch.distributions import Categorical
 torch.autograd.profiler.profile(False)
 torch.autograd.profiler.emit_nvtx(False)
 
+
 class RL_Agent(ABC):
     TRAIN = 0
     EVAL = 1
@@ -125,17 +126,11 @@ class RL_Agent(ABC):
     def train_n_steps(self, env, n_steps, max_episode_len=None, disable_tqdm=False, additional_const_features={}):
         return self._train_n_iters(env, n_steps, episodes=False, max_episode_len=max_episode_len, disable_tqdm=disable_tqdm, additional_const_features=additional_const_features)
 
-
+    
     def _train_n_iters(self, env, n_iters, episodes=False, max_episode_len=None, disable_tqdm=False, additional_const_features={}):
         """General train function, if episodes is true- each iter is episode, otherwise train steps"""
         self.set_train_mode()
-        if self.env is None:
-            env = ParallelEnv(env, self.num_parallel_envs)
-            self.env = env
-        else:
-            self.env.change_env(env)
 
-        env = self.env
         pbar = tqdm(total=n_iters, leave=False, disable=disable_tqdm)
         curr_training_steps = 0
         train_rewards = []
@@ -281,13 +276,12 @@ class RL_Agent(ABC):
     def close_env_procs(self):
         self.env = None
 
-
+    
     def collect_episode_obs(self, env, max_episode_len=None, num_to_collect=None, env_funcs={"step": "step", "reset": "reset"}, additional_const_features={}):
         # supports run on different env api
         if type(env) != ParallelEnv:
             if self.env is None:
-                env = ParallelEnv(env, self.num_parallel_envs)
-                self.env = env
+                self.env = ParallelEnv(env, self.num_parallel_envs)
             else:
                 self.env.change_env(env)
         else:
