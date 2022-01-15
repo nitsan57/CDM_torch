@@ -34,7 +34,7 @@ def main(args):
     gen_action_dim = env.get_generator_action_space().n
 
     p_agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
-    teacher_agent = PPO_Agent(gen_obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
+    teacher_agent = PPO_Agent(gen_obs_shape, gen_action_dim, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
     
     if args.method == "random":
         teacher = Random_Curriculum(env ,trainee=p_agent)
