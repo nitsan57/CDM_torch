@@ -51,7 +51,7 @@ class GenericTaxi():
     
     self.env.init_from_vec()
 
-register_test_env(TaxiRooms.env)
+# register_test_env(TaxiRooms.env)
 
 
 

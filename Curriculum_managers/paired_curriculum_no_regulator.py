@@ -10,13 +10,15 @@ from scipy.stats import entropy as calc_entropy
 
 
 class Curriculum_Entropy_Only(Curriculum_Manager):
-    def __init__(self, abstract_env, trainee, teacher_agent, save_dir=None) -> None:
+    def __init__(self, abstract_env, trainee, teacher_agent, inv_reward_entropy_coeff=1, save_dir=None) -> None:
         if save_dir is None:
             save_dir = "./results/Curriculum_Entropy_Only/" + abstract_env.__class__.__name__ + "/"
         
         self.random_z_dim = (10,)
         self.teacher = teacher_agent
         self.teacher.add_to_obs_shape({'random_z': self.random_z_dim})
+        self.inv_reward_entropy_coeff = inv_reward_entropy_coeff
+        self.max_reward = 0
         super().__init__(abstract_env, trainee, save_dir)
 
 
@@ -74,7 +76,6 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
         entropy_scale = 1
 
         paired_to_calc = 4
-        max_reward = 0
         
         number_of_envs_to_gen = 1
         for itr in pbar:
@@ -88,7 +89,7 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
 
             trainee_avg_r = np.mean(trainee_rewards)
             trainee_max_r = np.max(trainee_rewards)
-            max_reward = max(np.max(trainee_rewards), max_reward)
+            self.max_reward = max(np.max(np.abs(trainee_rewards)), self.max_reward)
 
             mean_r +=trainee_avg_r
             
@@ -102,9 +103,9 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
 
             max_possible_entropy = calc_entropy(np.ones(self.trainee.n_actions)/self.trainee.n_actions)
             normilized_inv_entropy = (max_possible_entropy - entropy) / max_possible_entropy # 1 represnts agent is sure of its move (1-entorpy)
-            rescaled_trainee_reward = trainee_max_r / (max_reward+1e-8)
+            rescaled_trainee_reward = trainee_max_r / (self.max_reward+1e-8)
 
-            teacher_reward =  rescaled_trainee_reward - normilized_inv_entropy
+            teacher_reward =  rescaled_trainee_reward - normilized_inv_entropy*self.inv_reward_entropy_coeff
 
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             reward_buffer_index = self.trainee.experience.reward_index

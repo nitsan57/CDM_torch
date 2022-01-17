@@ -1041,7 +1041,7 @@ class MultiGridEnv(minigrid.MiniGridEnv):
         # }
         # if self.fully_observed:
         #     obs['position'] = positions
-        obs = (images.astype(np.float32) / 10)
+        obs = (np.array(images).astype(np.float32) / 10)
 
         return obs
 
