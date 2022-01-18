@@ -1,5 +1,6 @@
 from collections import namedtuple
 from multiprocessing import Process, Pipe
+from turtle import pd
 import numpy as np
 import torch
 import copy
@@ -105,7 +106,7 @@ class ObsWraper:
                     to_add = np.array(data)
                 else:
                     to_add = np.expand_dims(data, axis=0)
-                self.data = {'data': to_add}
+                self.data = {'data': to_add.astype(np.float32)}
                 self.len = len(to_add)
 
 
@@ -121,9 +122,9 @@ class ObsWraper:
                 res.append(np.array(obs[k]))
             res = np.array(res)
             if res.shape[0] != 1 and res.shape[1] == 1 and len(res.shape) > 2:
-                self.data[k] = np.squeeze(res, axis=1)
+                self.data[k] = np.squeeze(res, axis=1).astype(np.float32)
             else:
-                self.data[k] = res
+                self.data[k] = res.astype(np.float32)
         
         self.len = len(obs_list)
 
@@ -132,7 +133,10 @@ class ObsWraper:
         self.data = {}
         self.len = 0
         res = np.array(obs_list)
-        self.data['data'] = res
+        if np.issubdtype(type(res[0]), np.integer):
+            self.data['data'] = np.expand_dims(res,1).astype(np.float32)
+        else:
+            self.data['data'] = res.astype(np.float32)
         self.len = len(res)
 
     def _init_from_none_(self):
@@ -368,10 +372,6 @@ class ExperienceReplay:
             "return last episode"
 
             dones = np.where(self.all_buffers[self.dones_index] == True)[0]
-            import matplotlib.pyplot as plt
-            # if any(self.all_buffers[self.reward_index] == 4) and len(self.experience) > 90000:
-            #     import pdb
-            #     pdb.set_trace()
             if len(dones) > 1:
                 # exclude the latest done sample
                 first_sample_idx = dones[-2] + 1

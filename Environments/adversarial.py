@@ -46,7 +46,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
     num_inited = 0
 
     def __init__(self, n_clutter=50, size=15, agent_view_size=5, max_steps=250,
-                 goal_noise=0., choose_goal_last=False, random_reset_loc=True):
+                 goal_noise=0., choose_goal_last=False, random_reset_loc=False):
         """Initializes environment in which adversary places goal, agent, obstacles.
 
         Args:

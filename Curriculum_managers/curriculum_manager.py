@@ -25,6 +25,9 @@ class Curriculum_Manager(ABC):
 
         self.device = self.trainee.device
         self.save_agent_iters = 100
+        if save_dir is None:
+            save_dir = "./results/"+self.__class__.__name__ +"/"+ abstract_env.__class__.__name__ + "/"
+
         if not os.path.isdir(save_dir):
             os.makedirs(os.path.join(save_dir, "images"))
         self.save_dir = save_dir

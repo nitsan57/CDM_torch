@@ -30,7 +30,7 @@ class Base_Env(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_generator_observation_space():
+    def get_generator_observation_space(self):
         raise NotImplementedError
 
     @abstractmethod

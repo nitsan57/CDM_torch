@@ -8,7 +8,7 @@ import torch.optim as optim
 import numpy as np
 from Models.fc import FC
 from .agent_utils import calc_returns, calc_gaes
-from .agent import RL_Agent
+from .drl_agent import RL_Agent
 from torch.distributions import Categorical
 
 

@@ -4,7 +4,7 @@ import torch.optim as optim
 import numpy as np
 from Agents.agent_utils import ObsWraper
 from Models.fc import FC
-from .agent import RL_Agent
+from .drl_agent import RL_Agent
 from torch.distributions import Categorical
 
 class DQN_Agent(RL_Agent):
