@@ -45,7 +45,6 @@ class Random_Curriculum(Curriculum_Manager):
     def teach(self, n_iters, n_episodes=1):
         self.trainee.set_train_mode()
         self.trainee.set_store_entropy(True)
-
         number_episodes_for_regret_calc = 4
         self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
         pbar = tqdm(range(self.curr_iter, n_iters))

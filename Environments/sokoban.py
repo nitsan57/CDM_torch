@@ -4,14 +4,38 @@ from .environments import register_env
 import gym
 import numpy as np
 import os
+from pddlgym.pddlgym.core import PDDLEnv
 
-def get_non_goal_pos_str(row, col):
-    pos_style = f"	(is-nongoal pos-{row}-{col})"
+
+def get_mov_str(x, y, walls):
+    all_move_str = "\n"
+    dirs = ["left", "up", "right", "down"]
+    left_move = (x-1,y)
+    up_move = (x,y-1)
+    right_move = (x+1,y)
+    down_move = (x,y+1)
+    orig =(x,y)
+    moves = [left_move, up_move, right_move, down_move]
+    for i,dir in enumerate(dirs):
+        wall_bool = False
+        for w in walls:
+            if all(moves[i] == w) or all(orig == w):
+                wall_bool = True
+                break
+
+        if wall_bool:
+            continue
+        all_move_str += f"	(move-dir pos-{x}-{y} pos-{moves[i][0]}-{moves[i][1]} dir-{dir})" + "\n"
+
+    return all_move_str
+
+def get_non_goal_pos_str(x, y):
+    pos_style = f"	(is-nongoal pos-{x}-{y})"
     return pos_style
 
 
-def get_clear_pos_str(row, col):
-    clear_pos_style = f"	(clear pos-{row}-{col})"
+def get_clear_pos_str(x, y):
+    clear_pos_style = f"	(clear pos-{x}-{y})"
     return clear_pos_style
 
 
@@ -33,20 +57,29 @@ def create_env_file(f_path, player_pos, stone_pos, goal_pos, wall_pos=[], size=5
     else:
         walls = np.concatenate([bot, right, left, top])
     for p in all_pos:
-        walls_bool = all((tuple(p) != y).all() for y in walls)
+        walls_bool = True
+        for w in walls:           
+            if all(p == w):
+                walls_bool = False
+                break
+
         if any(player_pos != p) and any(stone_pos != p) and walls_bool:
             pos_str = get_clear_pos_str(*p)
             all_clears_str += pos_str + "\n"
 
     non_goal_str = "\n"
-    for p in walls:
-        non_goal_str += get_non_goal_pos_str(*p) + "\n"
+    for p in all_indices:
+        p = p+1
+        if any(p != goal_pos):
+            non_goal_str += get_non_goal_pos_str(*p) + "\n"
 
     goal_str = f"	(is-goal pos-{goal_pos[0]}-{goal_pos[1]})\n"
-    all_file_str = prefix + player_str + stone_str + goal_str + all_clears_str + non_goal_str + postfix
+    all_move_str = "\n"
+    for p in all_pos:
+        all_move_str+= get_mov_str(*p, walls)
+    all_file_str = prefix + player_str + stone_str + goal_str + all_clears_str + non_goal_str + postfix + all_move_str + "))"
     curr_dir = os.path.dirname(__file__)
     f_path = curr_dir+"/../pddlgym/pddlgym/pddl/sokoban/problem00.pddl"
-    # all_env_str =
     with open(f_path, "w") as f:
         f.write(all_file_str)
 
@@ -55,10 +88,11 @@ class Sokoban(Base_Env):
     def __init__(self) -> None:
         super().__init__()
         # edit problem file
+        self.pddl_env = None
         self.size = 5
-        self.generator_step_count = 0
         self.generator_max_steps = 9
         self.generator_action_dim = self.size* self.size
+        self.domain = "../pddlgym/pddlgym/pddl/sokoban.pddl"
         self.problem_file = "../pddlgym/pddlgym/pddl/sokoban/problem00.pddl"
         # init parmas
         self.clear_env()
@@ -69,21 +103,25 @@ class Sokoban(Base_Env):
     def init_pddl_env(self):
         create_env_file(self.problem_file, self.player_pos, self.stone_pos, self.goal_pos, self.walls)
         self.pddl_env, self.obs_shape, self.num_actions = get_pddl_env("sokoban")
-        
+       
 
     def get_max_episode_steps(self,):
         return 250
 
+
     def get_generator_max_steps(self,):
         return self.generator_max_steps
 
+
     def get_observation(self, agent=True):
-        return self.pddl_env.get_obs().shape
+        return self.pddl_env.get_obs().astype(np.float32) / 6
+
 
     def unpack_index(self, loc):
         col = int(loc % (self.size))
         row = int(loc / (self.size))
         return row+1, col+1
+
 
     def step_generator(self, loc):
         """The generator gets n_clutter + 2 moves to place the goal, agent, blocks.
@@ -104,19 +142,19 @@ class Sokoban(Base_Env):
             raise ValueError('Position passed to step_generator is outside the grid.')
 
         # Add offset of 1 for outside walls
-        row, col = self.unpack_index(loc)
+        y, x = self.unpack_index(loc)
 
         done = False
 
         # Place goal
         if current_turn == "choose_goal":
-            self.goal_pos = (row, col)
+            self.goal_pos = (x, y)
 
         # Place the agent
         elif current_turn == "choose_player":
             # Goal has already been placed here
-            if self.goal_pos != (row, col):
-                self.player_pos = (row, col)
+            if self.goal_pos != (x, y):
+                self.player_pos = (x, y)
             else:
                 while True:
                     row = np.random.randint(self.size)+1
@@ -126,8 +164,8 @@ class Sokoban(Base_Env):
                         break
 
         elif current_turn == "choose_stone":
-            if self.goal_pos != (row, col) and self.player_pos != (row, col):
-                self.stone_pos = (row, col)
+            if self.goal_pos != (x, y) and self.player_pos != (x, y):
+                self.stone_pos = (x, y)
             else:
                 while True:
                     row = np.random.randint(self.size)+1
@@ -139,8 +177,8 @@ class Sokoban(Base_Env):
         # Place wall
         elif self.generator_step_count < self.generator_max_steps:
             # If there is already an object there, action does nothing, also if it is on the grid bounderies
-            if self.goal_pos != (row, col) and self.player_pos != (row, col) and self.stone_pos != (row, col):
-                self.walls.append((row, col))
+            if self.goal_pos != (x, y) and self.player_pos != (x, y) and self.stone_pos != (x, y):
+                self.walls.append((x, y))
 
         self.generator_step_count += 1
         self.init_pddl_env()
@@ -175,12 +213,13 @@ class Sokoban(Base_Env):
         return self.pddl_env.reset()
 
     def clear_env(self,):
+        self.generator_step_count = 0
         self.player_pos = (2, 2)
         self.goal_pos = (4, 4)
         self.stone_pos = (3, 3)
         self.walls = []
-        self.generator_step_count = 0
         self.init_pddl_env()
+        return self.get_observation()
 
 
     def sample_random_state(self,):
@@ -195,7 +234,7 @@ class Sokoban(Base_Env):
         return self.pddl_env.step(a)
 
     def render(self,mode="rgb_array"):
-        return self.pddl_env.render("rgb_array")
+        return (self.pddl_env.render("human_crisp")*255).astype(np.uint8)
 
 
 register_env(Sokoban)
@@ -256,37 +295,4 @@ postfix = """	(is-player player-01)
 	(move dir-left)
 	(move dir-right)
 	(move dir-up)
-	(move-dir pos-1-2 pos-2-2 dir-right)
-	(move-dir pos-2-1 pos-2-2 dir-down)
-	(move-dir pos-2-2 pos-1-2 dir-left)
-	(move-dir pos-2-2 pos-2-1 dir-up)
-	(move-dir pos-2-4 pos-2-5 dir-down)
-	(move-dir pos-2-4 pos-3-4 dir-right)
-	(move-dir pos-2-5 pos-2-4 dir-up)
-	(move-dir pos-2-5 pos-3-5 dir-right)
-	(move-dir pos-2-6 pos-2-5 dir-up)
-	(move-dir pos-3-4 pos-2-4 dir-left)
-	(move-dir pos-3-4 pos-3-5 dir-down)
-	(move-dir pos-3-4 pos-4-4 dir-right)
-	(move-dir pos-3-5 pos-2-5 dir-left)
-	(move-dir pos-3-5 pos-3-4 dir-up)
-	(move-dir pos-3-5 pos-4-5 dir-right)
-	(move-dir pos-3-6 pos-3-5 dir-up)
-	(move-dir pos-4-2 pos-4-3 dir-down)
-	(move-dir pos-4-2 pos-5-2 dir-right)
-	(move-dir pos-4-3 pos-4-2 dir-up)
-	(move-dir pos-4-3 pos-4-4 dir-down)
-	(move-dir pos-4-3 pos-5-3 dir-right)
-	(move-dir pos-4-4 pos-3-4 dir-left)
-	(move-dir pos-4-4 pos-4-3 dir-up)
-	(move-dir pos-4-4 pos-4-5 dir-down)
-	(move-dir pos-4-5 pos-3-5 dir-left)
-	(move-dir pos-4-5 pos-4-4 dir-up)
-	(move-dir pos-4-5 pos-5-5 dir-right)
-	(move-dir pos-4-6 pos-4-5 dir-up)
-	(move-dir pos-5-2 pos-4-2 dir-left)
-	(move-dir pos-5-2 pos-5-3 dir-down)
-	(move-dir pos-5-3 pos-4-3 dir-left)
-	(move-dir pos-5-3 pos-5-2 dir-up)
-	(move-dir pos-5-5 pos-4-5 dir-left)
-))"""
+"""

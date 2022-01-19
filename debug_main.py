@@ -20,41 +20,18 @@ import plotly.express as px
 from pddlgym import pddlgym
 
 def get_env_norm(env_name):
-    env = all_envs[env_name](random_reset_loc=False)
-    n_actions = env.action_space.n
-    obs_shape = env.observation_space
-    return env, obs_shape, n_actions
-
-def get_env(env_name, operators_as_actions=False, env_idx=0):
-    env = pddlgym.make("PDDLEnv{}-v0".format(env_name.capitalize()), operators_as_actions=operators_as_actions)
-    env.fix_problem_index(env_idx)
-    obs = env.reset()
-    obs_space=(1,)
-    env_action_space = env.action_space
-    actions = set()
-    for i in range(1):
-        actions.add(env.sample_action_space(obs))
-    num_states = 600000
-    setattr(env_action_space, "n", len(env.action_space._all_ground_literals))
-    setattr(env, "actions", env.action_space._all_ground_literals)
-    setattr(env, "num_states", num_states)
-    setattr(env.env, "n", len(env.action_space._all_ground_literals))
-    setattr(env.env, "actions", env.action_space._all_ground_literals)
-    setattr(env.env, "num_states", num_states)
-    return env,obs_space, env_action_space.n
+    env = all_envs[env_name]()
+    n_actions = env.get_action_space().n
+    obs_shape = env.get_observation_space()
+    gen_obs_shape = env.get_generator_observation_space()
+    gen_action_dim = env.get_generator_action_space().n
+    return env, obs_shape, n_actions, gen_obs_shape, gen_action_dim
 
 def main():
     env_names = get_all_avail_envs()
     env_names
     device = utils.init_torch()
-    # gen_obs_shape = env.get_generator_observation_space().shape
-    # gen_action_dim = env.get_generator_action_space().n
-    import pdb
-    pdb.set_trace()
-    env, obs_shape, n_actions = get_env('sokoban')
-    
-
-    # env, obs_shape, n_actions = get_env_norm('MiniAdversarialEnv')
+    env, obs_shape, n_actions, gen_obs_shape, gen_action_dim= get_env_norm('Sokoban')
 
     # r_agent = DQN_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5,num_parallel_envs=4, lr=0.0001, model=rnn.RNN)
     # r_agent = DQN_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5,exploration_epsilon=0.5, lr=0.001, model=fc.FC)
@@ -101,16 +78,12 @@ def main():
     # pe_rewards = pe_teacher.teach(n_iters=10000, n_episodes=8)
 
 
-    # pen_agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
-    # pen_teacher_agent = PPO_Agent(gen_obs_shape, gen_action_dim, device=device, batch_size=64, max_mem_size=10**5, lr=0.001, model=rnn.RNN)
-    # pen_teacher = Curriculum_Entropy_Only(env, teacher_agent=pen_teacher_agent ,trainee=pen_agent)
-    # pen_rewards = pen_teacher.teach(n_iters=20000, n_episodes=1)
+    pen_agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
+    pen_teacher_agent = PPO_Agent(gen_obs_shape, gen_action_dim, device=device, batch_size=64, max_mem_size=10**5, lr=0.001, model=rnn.RNN)
+    pen_teacher = Curriculum_Entropy_Only(env, teacher_agent=pen_teacher_agent ,trainee=pen_agent)
+    pen_rewards = pen_teacher.teach(n_iters=20000, n_episodes=1)
 
 
-
-    
-    agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5,num_parallel_envs=64, lr=0.0001 ,model=rnn.RNN)
-    train_rewards = agent.train_episodial(env, n_episodes=10000)
     # pee_agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
     # pee_teacher_agent = PPO_Agent(gen_obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
     # pee_teacher = Curriculum_Entropy_Only(env, teacher_agent=pee_teacher_agent ,trainee=pee_agent)
