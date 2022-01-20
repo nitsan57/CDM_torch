@@ -84,17 +84,14 @@ class PAIRED_Curriculum(Curriculum_Manager):
             env = envs[0]
             self.write_env(env, itr)
             # env = ParallelEnv(env, number_episodes_for_regret_calc)
-            n_steps_collected = 0
             trainee_mean_r = 0
             total_anta_max_r = 0
             for i in range(n_episodes):
                 trainee_rewards = self.trainee.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc) #collect a single episode experience - controled in num_env_parallel in each agent
                 antagonist_rewards = self.antagonist.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc)
 
-                curr_steps_collected = np.sum([len(r) for r in trainee_rewards])
-
-                trainee_rewards = functools.reduce(operator.iconcat, trainee_rewards, [])
-                antagonist_rewards = functools.reduce(operator.iconcat, antagonist_rewards, [])
+                trainee_rewards = [np.sum(r) for r in trainee_rewards]
+                antagonist_rewards = [np.sum(r) for r in antagonist_rewards]
 
                 trainee_avg_r = np.mean(trainee_rewards)
                 trainee_max_r = np.max(trainee_rewards)
@@ -116,7 +113,6 @@ class PAIRED_Curriculum(Curriculum_Manager):
                 self.trainee.update_policy(*t_exp)
                 self.antagonist.update_policy(*a_exp)
 
-                n_steps_collected += curr_steps_collected
                 trainee_mean_r +=trainee_avg_r
             
             total_mean_r = trainee_mean_r/n_episodes

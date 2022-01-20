@@ -36,31 +36,6 @@ class PAIRED_Curriculum_History_filter_Entropy(Curriculum_Manager):
         if env_dist != 0:
             self.history_env_list.append(new_env_actions)
 
-
-    def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
-        env_list = []
-        for i in range(number_of_envs):
-            self.teacher.set_num_parallel_env(1)
-            if teacher_eval_mode:
-                self.teacher.set_eval_mode()
-            a_env = self.abstract_env
-            a_env = ParallelEnv(a_env, 1)
-            if not teacher_eval_mode:
-                self.teacher.set_train_mode()
-                random_z  = np.random.rand(self.random_z_dim[0])
-                additional_const_features = {'random_z':  random_z}
-                self.teacher.collect_episode_obs(a_env, max_episode_len=self.teacher_max_steps, env_funcs={"step":"step_generator", "reset":"clear_env"}, additional_const_features=additional_const_features)
-            else:
-                obs = a_env.clear_env()
-                for i in range(self.teacher_max_steps):
-                    a = self.teacher.act(obs)
-                    a_env.step_generator(a)
-            
-            self.abstract_env = a_env.get_envs()[0]
-            env_list.append(deepcopy(a_env.get_envs()[0]))
-
-        return env_list
-
         
     def save_models(self, num_iter):
         self.trainee.save_agent(f"{self.save_dir}_{num_iter}_trainee.ckpt")
@@ -99,12 +74,11 @@ class PAIRED_Curriculum_History_filter_Entropy(Curriculum_Manager):
         max_possible_entropy = calc_entropy(np.ones(self.trainee.n_actions)/self.trainee.n_actions)
         for itr in pbar:
             envs = self.create_envs(number_of_envs_to_gen, teacher_eval_mode=False)
-            
+            teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             action_buffer_index = self.trainee.experience.actions_index
             env_actions = teacher_exp[action_buffer_index]
             
             env_action_representations = [env_actions[self.teacher_max_steps*j:self.teacher_max_steps*(j+1)] for j in range(number_of_envs_to_gen-1)]
-            print(env_action_representations)
 
             env_scores = self.score_envs(env_action_representations, self.calc_env_normilized_dist)
             env_idx = self.chose_best_env_idx(env_scores, "history")
@@ -112,17 +86,14 @@ class PAIRED_Curriculum_History_filter_Entropy(Curriculum_Manager):
             env_score = env_scores[env_idx]
             self.write_env(env, itr)
             # env = ParallelEnv(env, number_episodes_for_regret_calc)
-            n_steps_collected = 0
             trainee_mean_r = 0
             total_anta_max_r = 0
             for i in range(n_episodes):
                 trainee_rewards = self.trainee.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc) #collect a single episode experience - controled in num_env_parallel in each agent
                 antagonist_rewards = self.antagonist.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc)
 
-                curr_steps_collected = np.sum([len(r) for r in trainee_rewards])
-
-                trainee_rewards = functools.reduce(operator.iconcat, trainee_rewards, [])
-                antagonist_rewards = functools.reduce(operator.iconcat, antagonist_rewards, [])
+                trainee_rewards = [np.sum(r) for r in trainee_rewards]
+                antagonist_rewards = [np.sum(r) for r in antagonist_rewards]
 
                 trainee_avg_r = np.mean(trainee_rewards)
                 trainee_max_r = np.max(trainee_rewards)
@@ -144,7 +115,6 @@ class PAIRED_Curriculum_History_filter_Entropy(Curriculum_Manager):
                 self.trainee.update_policy(*t_exp)
                 self.antagonist.update_policy(*a_exp)
 
-                n_steps_collected += curr_steps_collected
                 trainee_mean_r +=trainee_avg_r
             
             total_mean_r = trainee_mean_r/n_episodes
@@ -163,7 +133,6 @@ class PAIRED_Curriculum_History_filter_Entropy(Curriculum_Manager):
                 teacher_reward +=normilized_entropy*entropy_coeff #incentivize entropy enducing env
 
 
-            teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             chosen_env_idx = (self.teacher_max_steps)*env_idx-1 #in respect to actions-rewards-buffer
             teacher_exp[reward_buffer_index][chosen_env_idx] = teacher_reward
             self.teacher.update_policy(*teacher_exp)

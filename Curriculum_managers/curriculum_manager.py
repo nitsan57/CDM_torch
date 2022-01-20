@@ -8,6 +8,7 @@ import numpy as np
 import functools
 import operator
 from scipy.stats import entropy as calc_entropy
+from Agents.agent_utils import ParallelEnv
 
 
 class Curriculum_Manager(ABC):
@@ -85,13 +86,31 @@ class Curriculum_Manager(ABC):
         self.verbose = verbose
 
 
-    # def chose_env_history(self, score_list):
-    #     max_dist = 0
-    #     max_dist_id
-    #     for i,s in enumerate(score_list):
-    #         if max_dist > s:
-    #             i
-    #     return
+    def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
+        env_list = []
+        if teacher_eval_mode:
+                self.teacher.set_eval_mode()
+            #     obs = a_env.clear_env()
+            #     for i in range(self.teacher_max_steps):
+            #         a = self.teacher.act(obs)
+            #         a_env.step_generator(a)
+
+        else:
+            self.teacher.set_train_mode()
+
+        self.teacher.set_num_parallel_env(1)
+        for i in range(number_of_envs):
+            a_env = self.abstract_env
+            a_env = ParallelEnv(a_env, 1)
+
+            random_z  = np.random.rand(self.random_z_dim[0])
+            additional_const_features = {'random_z':  random_z}
+            self.teacher.collect_episode_obs(a_env, max_episode_len=self.teacher_max_steps, env_funcs={"step":"step_generator", "reset":"clear_env"}, additional_const_features=additional_const_features)
+            self.abstract_env = a_env.get_envs()[0]
+            env_list.append(deepcopy(a_env.get_envs()[0]))
+
+        return env_list
+
 
     def chose_best_env_idx(self, score_list, method):
         
@@ -107,11 +126,6 @@ class Curriculum_Manager(ABC):
             env_score = scoring_func(env)
             env_scores.append(env_score)
         return env_scores
-
-
-    @abstractmethod
-    def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
-        raise NotImplementedError
 
 
     @abstractmethod

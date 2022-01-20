@@ -73,7 +73,7 @@ class PPO_Agent(RL_Agent):
 
 
     def get_last_collected_experiences(self, number_of_episodes):
-        return self._get_ppo_experiences(number_of_episodes)
+        return self._get_ppo_experiences(number_of_episodes, safe_check=False)
 
 
     def train(self, env, n_episodes):
@@ -138,13 +138,14 @@ class PPO_Agent(RL_Agent):
         self.values = [[] for i in range(self.num_parallel_envs)]
 
 
-    def _get_ppo_experiences(self, num_episodes= None):
+    def _get_ppo_experiences(self, num_episodes= None, safe_check=True):
         """Current PPO only suports random_Samples = False!!"""
         if num_episodes is None:
             num_episodes = self.num_parallel_envs
 
-        assert num_episodes <= self.num_parallel_envs
-        states, actions, rewards, dones, next_states = self.experience.get_last_episodes(self.num_parallel_envs)
+        if safe_check:
+            assert num_episodes <= self.num_parallel_envs
+        states, actions, rewards, dones, next_states = self.experience.get_last_episodes(num_episodes)
         actions = torch.tensor(actions).to(self.device)
         rewards = torch.tensor(rewards).to(self.device)
         dones = torch.tensor(dones).to(self.device)

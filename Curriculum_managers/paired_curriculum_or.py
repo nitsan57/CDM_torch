@@ -84,7 +84,6 @@ class PAIRED_Curriculum_OR(Curriculum_Manager):
             # in paired we create single env
             env = envs[0]
             self.write_env(env, itr)
-            mean_r = 0
 
             trainee_rewards = self.trainee.train_episodial(env, n_episodes*paired_to_calc, disable_tqdm=True) #train n_episodes per generated_env
             antagonist_rewards = self.antagonist.train_episodial(env, n_episodes*paired_to_calc, disable_tqdm=True) #train n_episodes per generated_env
@@ -92,14 +91,13 @@ class PAIRED_Curriculum_OR(Curriculum_Manager):
             trainee_avg_r = np.mean(trainee_rewards)
             anta_max_r = np.max(antagonist_rewards)
 
-            mean_r +=trainee_avg_r
             
-            all_mean_rewards.append(mean_r/n_episodes)
+            all_mean_rewards.append(trainee_avg_r)
 
             
             entropy = self.get_trainne_entropy()
             self.agent_train_entropy.append(entropy)
-            desciption = f"R:{np.round(mean_r/n_episodes, 2):08}, entropy: {entropy :01.4}"
+            desciption = f"R:{np.round(trainee_avg_r, 2):08}, entropy: {entropy :01.4}"
             pbar.set_description(desciption)
 
             teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r 

@@ -195,7 +195,8 @@ class RL_Agent(ABC):
 
     def get_seqs_indices_for_pack(self, done_indices):
         """returns seq_lens, sorted_data_sub_indices"""
-        env_indices = np.zeros(self.num_parallel_envs, dtype=np.int32)
+        # env_indices = np.zeros(self.num_parallel_envs, dtype=np.int32)
+        env_indices = np.zeros_like(done_indices, dtype=np.int32)
         env_indices[0] = -1
         env_indices[1:] = done_indices[:-1]
         all_lens = done_indices - env_indices
@@ -211,6 +212,7 @@ class RL_Agent(ABC):
     def pack_from_done_indices(self, data, sorted_seq_lens, done_indices):
         """returns pakced obs"""
         assert np.all(np.sort(sorted_seq_lens)[::-1] == sorted_seq_lens)
+        batch_size = len(done_indices)
         seq_lens = sorted_seq_lens
         max_len = np.max(seq_lens)
 
@@ -224,7 +226,7 @@ class RL_Agent(ABC):
                 curr_idx = d_i+1
             temp.sort(reverse=True, key=lambda x: x.size())
             padded_seq_batch = torch.nn.utils.rnn.pad_sequence(temp, batch_first=True)
-            padded_seq_batch = padded_seq_batch.reshape((self.num_parallel_envs, max_len, np.prod(obs_shape)))
+            padded_seq_batch = padded_seq_batch.reshape((batch_size, max_len, np.prod(obs_shape)))
             pakced_states = torch.nn.utils.rnn.pack_padded_sequence(padded_seq_batch, lengths=seq_lens, batch_first=True)
             packed_obs[k] = pakced_states
         return packed_obs
