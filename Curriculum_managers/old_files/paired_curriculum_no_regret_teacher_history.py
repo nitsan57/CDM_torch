@@ -7,17 +7,15 @@ from Agents.agent_utils import ParallelEnv
 from tqdm import tqdm
 
 
-class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
+class PAIRED_Curriculum_no_regret_history(Curriculum_Manager):
     def __init__(self, abstract_env, trainee, teacher_agent, save_dir=None) -> None:
-        # if save_dir is None:
-        #     save_dir = "./results/PAIRED_Curriculum_no_regret_entropy/" + abstract_env.__class__.__name__ + "/"
         
         self.random_z_dim = (10,)
         self.teacher = teacher_agent
         self.teacher.add_to_obs_shape({'random_z': self.random_z_dim})
         self.antagonist = deepcopy(trainee)
+        self.history_env_list = []
         super().__init__(abstract_env, trainee, save_dir)
-
 
 
     def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
@@ -27,7 +25,6 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
             self.teacher.set_eval_mode()
 
         a_env = ParallelEnv(self.abstract_env, number_of_envs)
-
 
         if not teacher_eval_mode:
             self.teacher.set_train_mode()
@@ -45,7 +42,18 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
 
         return a_env.get_envs()
 
-        
+    def calc_env_normilized_dist_and_add_to_history(self, new_env_actions):
+        global_max_dist = np.sum(np.ones(self.teacher_max_steps)*self.teacher_action_dim)
+        env_dist = 0
+        for h_e in self.history_env_list:
+            env_dist = max(np.sum(np.abs(new_env_actions - h_e), env_dist))
+            
+        if env_dist != 0:
+            self.history_env_list.append(new_env_actions)
+
+        return env_dist / global_max_dist     
+
+
     def save_models(self, num_iter):
         self.trainee.save_agent(f"{self.save_dir}_{num_iter}_trainee.ckpt")
         self.antagonist.save_agent(f"{self.save_dir}_{num_iter}_antagonist.ckpt")
@@ -82,6 +90,7 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
         paired_to_calc = 4
         
         number_of_envs_to_gen = 1
+        history_coeff = 0.5
         self.trainee.set_store_entropy(True)
         for itr in pbar:
             envs = self.create_envs(number_of_envs_to_gen, teacher_eval_mode=False)
@@ -106,11 +115,14 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
             desciption = f"R:{np.round(mean_r/n_episodes, 2):08}, entropy: {entropy :01.4}"
             pbar.set_description(desciption)
 
-            teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r + (entropy_coeff * entropy)
+            
 
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             reward_buffer_index = self.trainee.experience.reward_index
-            teacher_exp[reward_buffer_index][-1] = teacher_reward
+            action_buffer_index = self.trainee.experience.actions_index
+            env_actions = teacher_exp[action_buffer_index]
+            teacher_reward = (anta_max_r / self.max_episode_steps)- trainee_avg_r + - (1-self.calc_env_normilized_dist_and_add_to_history(env_actions))*history_coeff
+            teacher_exp[reward_buffer_index][-1] = teacher_reward 
             self.teacher.update_policy(*teacher_exp)
             # not a must on Q learning, or any
             self.teacher.clear_exp()
@@ -119,7 +131,7 @@ class PAIRED_Curriculum_no_regret_entropy(Curriculum_Manager):
 
             self.curr_iter = itr
             if itr % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy})
+                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy, "history_env_list": self.history_env_list})
 
         self.trainee.close_env_procs()
         self.antagonist.close_env_procs()

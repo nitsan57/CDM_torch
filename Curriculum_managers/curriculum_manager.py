@@ -85,6 +85,30 @@ class Curriculum_Manager(ABC):
         self.verbose = verbose
 
 
+    # def chose_env_history(self, score_list):
+    #     max_dist = 0
+    #     max_dist_id
+    #     for i,s in enumerate(score_list):
+    #         if max_dist > s:
+    #             i
+    #     return
+
+    def chose_best_env_idx(self, score_list, method):
+        
+        if method == "history":
+            return np.argmax(score_list)
+
+        else:
+            raise Exception("not implimented method")
+
+    def score_envs(self, env_list, scoring_func):
+        env_scores = []
+        for env in env_list:
+            env_score = scoring_func(env)
+            env_scores.append(env_score)
+        return env_scores
+
+
     @abstractmethod
     def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
         raise NotImplementedError

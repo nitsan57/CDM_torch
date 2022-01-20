@@ -349,15 +349,15 @@ elif hasattr(__loader__, 'fullname'):
   module_path = __loader__.fullname
 
 
-register_test_env(MazeEnv)
-register_test_env(MiniMazeEnv)
-register_test_env(MediumMazeEnv)
-register_test_env(HorizontalMazeEnv)
-register_test_env(Maze3Env)
-register_test_env(LabyrinthEnv)
-register_test_env(Labyrinth2Env)
-register_test_env(SixteenRoomsEnv)
-register_test_env(SixteenRoomsFewerDoorsEnv)
-register_test_env(NineRoomsEnv)
-register_test_env(NineRoomsFewerDoorsEnv)
+register_test_env(MazeEnv, "Maze", "hard")
+register_test_env(MiniMazeEnv, "Maze", "medium")
+register_test_env(MediumMazeEnv, "Maze", "hard")
+register_test_env(HorizontalMazeEnv, "Maze", "hard")
+register_test_env(Maze3Env, "Maze", "hard")
+register_test_env(LabyrinthEnv, "Maze", "hard")
+register_test_env(Labyrinth2Env, "Maze", "hard")
+register_test_env(SixteenRoomsEnv, "Maze", "hard")
+register_test_env(SixteenRoomsFewerDoorsEnv, "Maze", "hard")
+register_test_env(NineRoomsEnv, "Maze", "hard")
+register_test_env(NineRoomsFewerDoorsEnv, "Maze", "hard")
 

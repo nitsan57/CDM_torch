@@ -9,16 +9,14 @@ from tqdm import tqdm
 from scipy.stats import entropy as calc_entropy
 
 
-class Curriculum_Entropy_Only(Curriculum_Manager):
-    def __init__(self, abstract_env, trainee, teacher_agent, inv_reward_entropy_coeff=1, save_dir=None) -> None:
-        # if save_dir is None:
-        #     save_dir = "./results/Curriculum_Entropy_Only/" + abstract_env.__class__.__name__ + "/"
-        
+class Curriculum_Unregulated_Entropy_History(Curriculum_Manager):
+    def __init__(self, abstract_env, trainee, teacher_agent, inv_reward_entropy_coeff=1, save_dir=None) -> None:        
         self.random_z_dim = (10,)
         self.teacher = teacher_agent
         self.teacher.add_to_obs_shape({'random_z': self.random_z_dim})
         self.inv_reward_entropy_coeff = inv_reward_entropy_coeff
         self.max_reward = 0
+        self.history_env_list = []
         super().__init__(abstract_env, trainee, save_dir)
 
 
@@ -41,7 +39,6 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
                 a = self.teacher.act(obs)
                 a_env.step_generator(a)
 
-        # normal gym env again
         self.abstract_env = a_env.get_envs()[0]
 
         return a_env.get_envs()
@@ -64,6 +61,18 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
         self.teacher.set_train_mode()
         self.trainee.set_train_mode()
         self.trainee.set_store_entropy(True)
+    
+
+    def calc_env_normilized_dist_and_add_to_history(self, new_env_actions):
+        global_max_dist = np.sum(np.ones(self.teacher_max_steps)*self.teacher_action_dim)
+        env_dist = 0
+        for h_e in self.history_env_list:
+            env_dist = max(np.sum(np.abs(new_env_actions - h_e), env_dist))
+            
+        if env_dist != 0:
+            self.history_env_list.append(new_env_actions)
+
+        return env_dist / global_max_dist
 
 
     def teach(self, n_iters, n_episodes=8):
@@ -74,7 +83,7 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
         self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
 
         entropy_scale = 1
-
+        history_coeff = 2
         paired_to_calc = 4
         
         number_of_envs_to_gen = 1
@@ -105,10 +114,14 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
             normilized_inv_entropy = (max_possible_entropy - entropy) / max_possible_entropy # 1 represnts agent is sure of its move (1-entorpy)
             rescaled_trainee_reward = trainee_max_r / (self.max_reward+1e-8)
 
-            teacher_reward =  rescaled_trainee_reward - normilized_inv_entropy*self.inv_reward_entropy_coeff
+            
 
             teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
             reward_buffer_index = self.trainee.experience.reward_index
+            action_buffer_index = self.trainee.experience.actions_index
+            env_actions = teacher_exp[action_buffer_index]
+            
+            teacher_reward =  rescaled_trainee_reward - normilized_inv_entropy*self.inv_reward_entropy_coeff - (1-self.calc_env_normilized_dist_and_add_to_history(env_actions))*history_coeff
             teacher_exp[reward_buffer_index][-1] = teacher_reward
             self.teacher.update_policy(*teacher_exp)
             # not a must on Q learning, or any
@@ -117,7 +130,7 @@ class Curriculum_Entropy_Only(Curriculum_Manager):
 
             self.curr_iter = itr
             if itr % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy})
+                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy, "max_reward": self.max_reward, "history_env_list": self.history_env_list})
 
         self.trainee.close_env_procs()
         return all_mean_rewards

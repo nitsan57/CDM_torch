@@ -161,10 +161,10 @@ elif hasattr(__loader__, 'fullname'):
   module_path = __loader__.fullname
 
 
-register_test_env(TwoRoomsEnvMinigrid)
-register_test_env(FourRoomsEnvMinigrid)
-register_test_env(MiniTwoRoomsEnvMinigrid)
-register_test_env(MiniFourRoomsEnvMinigrid)
+register_test_env(TwoRoomsEnvMinigrid, "Maze", "medium")
+register_test_env(FourRoomsEnvMinigrid, "Maze", "hard")
+register_test_env(MiniTwoRoomsEnvMinigrid, "Maze", "easy")
+register_test_env(MiniFourRoomsEnvMinigrid, "Maze", "medium")
 
 
 

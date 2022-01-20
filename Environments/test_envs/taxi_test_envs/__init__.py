@@ -21,16 +21,8 @@ simultaneously registered with Gym as a package.
 
 # Import all environments and register them, so pylint: disable=wildcard-import
 
-from .cluttered import *
-# from .coingame import *
-# from .doorkey import *
-# from .empty import *
-# from .fourrooms import *
-# from .gather import *
-# from .lava_walls import *
-# from .maze import *
-# from .meetup import *
-# from .stag_hunt import *
-# from .tag import *
-# from .tasklist import *
+from .random_taxi import *
+from .empty_taxi import *
+from .mazed_taxi import *
+
 

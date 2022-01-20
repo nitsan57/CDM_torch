@@ -1,17 +1,20 @@
 
-from Environments.environments import all_envs, get_all_avail_envs
+from Environments.environments import train_envs, get_all_avail_envs
 from Models import fc, rnn
 from Agents.dqn_agent import DQN_Agent
 from Agents.ppo_agent import PPO_Agent
 import utils
 from Curriculum_managers.random_curriculum import Random_Curriculum
 from Curriculum_managers.paired_curriculum import PAIRED_Curriculum
-from Curriculum_managers.paired_curriculum_no_regret_teacher_entropy import  PAIRED_Curriculum_no_regret_entropy
-from Curriculum_managers.paired_curriculum_no_regulator import Curriculum_Entropy_Only
+from Curriculum_managers.paired_curriculum_or import PAIRED_Curriculum_OR
+from Curriculum_managers.paired_curriculum_hf import PAIRED_Curriculum_History_filter
+from Curriculum_managers.paired_curriculum_hfe import PAIRED_Curriculum_History_filter_Entropy
+from Curriculum_managers.paired_curriculum_or_hfe import PAIRED_Curriculum_Original_R_History_filter_Entropy
+from Curriculum_managers.curriculum_no_regulator_he import Curriculum_Unregulated_Entropy_History
 import argparse
 
 def get_env(env_name):
-    env = all_envs[env_name](random_reset_loc=True)
+    env = train_envs[env_name](random_reset_loc=True)
     n_actions = env.action_space.n
     obs_shape = env.observation_space
     return env, obs_shape, n_actions
@@ -40,10 +43,17 @@ def main(args):
         teacher = Random_Curriculum(env ,trainee=p_agent)
     elif args.method == "paired":
         teacher = PAIRED_Curriculum(env, teacher_agent=teacher_agent ,trainee=p_agent)
-    elif args.method == "paired_entropy":
-        teacher = PAIRED_Curriculum_no_regret_entropy(env, teacher_agent=teacher_agent ,trainee=p_agent)
-    elif args.method == "entropy_only":
-        teacher = Curriculum_Entropy_Only(env, teacher_agent=teacher_agent ,trainee=p_agent)
+    elif args.method == "paired_or":
+        teacher = PAIRED_Curriculum_OR(env, teacher_agent=teacher_agent ,trainee=p_agent)
+    elif args.method == "paired_hf":
+        teacher = PAIRED_Curriculum_History_filter(env, teacher_agent=teacher_agent ,trainee=p_agent)
+    elif args.method == "paired_hfe":
+        teacher = PAIRED_Curriculum_History_filter_Entropy(env, teacher_agent=teacher_agent ,trainee=p_agent)
+    elif args.method == "paired_or_hfe":
+        teacher = PAIRED_Curriculum_Original_R_History_filter_Entropy(env, teacher_agent=teacher_agent ,trainee=p_agent)
+    elif args.method == "no_regulator":
+        teacher = Curriculum_Unregulated_Entropy_History(env, teacher_agent=teacher_agent ,trainee=p_agent)
+        
 
     p_rewards = teacher.teach(n_iters=args.iters, n_episodes=1)
 

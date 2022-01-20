@@ -8,11 +8,14 @@ from Agents.agent_utils import ParallelEnv
 from tqdm import tqdm
 from scipy.stats import entropy as calc_entropy
 
+from pddlgym_planners.fd import FD
+from pddlgym_planners.fd import PlanningFailure
 
-class Curriculum_Entropy_History(Curriculum_Manager):
+
+
+
+class Curriculum_PDDL_filter(Curriculum_Manager):
     def __init__(self, abstract_env, trainee, teacher_agent, inv_reward_entropy_coeff=1, save_dir=None) -> None:
-        # if save_dir is None:
-        #     save_dir = "./results/Curriculum_Entropy_History/" + abstract_env.__class__.__name__ + "/"
         
         self.random_z_dim = (10,)
         self.teacher = teacher_agent
@@ -21,7 +24,7 @@ class Curriculum_Entropy_History(Curriculum_Manager):
         self.max_reward = 0
         self.history_env_list = []
         super().__init__(abstract_env, trainee, save_dir)
-
+    
 
     def create_envs(self, number_of_envs=1, teacher_eval_mode=False):
         assert number_of_envs == 1 , "current more is not supported"
@@ -79,20 +82,52 @@ class Curriculum_Entropy_History(Curriculum_Manager):
         return env_dist / global_max_dist
 
 
+    def solve_pddl(self, env, actions_dict):
+        # Planning with FastDownward (--alias lama-first)
+        lama_first_planner = FD(alias_flag="--alias lama-first")
+        state = env.pddl_env.get_state()
+        try: 
+            plan =lama_first_planner(env.pddl_env.domain, state)
+        except PlanningFailure as e:
+            if "Plan not found with FD" in str(e):
+                plan = -1
+            else:
+                raise e
+
+        action_list = []
+        if plan != -1:
+            for p in plan:
+                action_idx = actions_dict[p]
+                action_list.append(action_idx)
+        return action_list
+
+
+    def create_and_filter(self, number_of_envs_to_create):
+        actions_dict = {}
+        for i,a in enumerate(self.abstract_env.pddl_env.actions):
+            actions_dict[a] = i
+        all_envs = []
+        for j in range(number_of_envs_to_create):
+            env = self.create_envs(1, teacher_eval_mode=False)[0]
+            plan = self.solve_pddl(env, actions_dict)
+            pass # need to choose the best env by its plan maybe? if no suitable env, maybe punish the generator?
+            # show 
+
+            
     def teach(self, n_iters, n_episodes=8):
         self.set_agents_to_train_mode()
         all_mean_rewards = []
         pbar = tqdm(range(self.curr_iter, n_iters))
         number_episodes_for_regret_calc = 4 # same as paired paper
         self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
-
+        number_of_envs_to_create = 100
         entropy_scale = 1
         history_coeff = 2
         paired_to_calc = 4
         
-        number_of_envs_to_gen = 1
+        number_of_envs_to_gen = 100
         for itr in pbar:
-            envs = self.create_envs(number_of_envs_to_gen, teacher_eval_mode=False)
+            env = create_and_filter
             # in paired we create single env
             env = envs[0]
             self.write_env(env, itr)

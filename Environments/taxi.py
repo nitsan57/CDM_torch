@@ -109,7 +109,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         DROPOFF = DROPOFF
         REFUEL = REFUEL
 
-    def __init__(self, size=5, agent_view_size=3, max_steps=300, n_clutter=10, n_agents=1, random_reset_loc=False):
+    def __init__(self, size=5, agent_view_size=3, max_steps=300, n_clutter=6, n_agents=1, random_reset_loc=False):
         ####PARAMS FOR PAIRED####
         self.agent_view_size = agent_view_size
         self.minigrid_mode = True
@@ -120,7 +120,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         self.num_rows = self.size
         self.num_columns = self.size
         self.generator_action_dim = self.num_rows * self.num_columns
-        self.generator_max_steps = self.n_clutter + 2
+        self.generator_max_steps = self.n_clutter + 4
         self.fully_observed = True
         self.n_agents = 1
         # INIT MAP PARAMS
@@ -566,9 +566,11 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         loc = row * self.num_columns + col
         return loc
 
-    def unpack_index(self, loc):
-        col = int(loc % (self.num_columns))
+    def unpack_index(self, loc, walls=False):
         row = int(loc / (self.num_rows))
+        col = int(loc % (self.num_columns))
+        # row = int(loc / (self.num_rows))
+
         return row, col
     
     def reset(self):
@@ -812,19 +814,19 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
 
     def reset_random(self):
         self.clear_env()
-        for i in range(13):
+        for i in range(self.generator_max_steps):
             loc = np.random.randint(self.get_generator_action_dim())
             self.step_generator(loc)
         return self.reset()
 
 
     def init_from_vec(self, vec):
-
         """encoded number of loc"""
         assert len(vec) >= self.generator_min_steps_for_init_map, "provided vector is too short for init"
+        self.clear_env()
         for v in vec:
             self.step_generator(v)
-        self.reset_agent()
+        self.reset()
 
         
 

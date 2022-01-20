@@ -331,7 +331,7 @@ class MultiGridEnv(minigrid.MiniGridEnv):
         height=None,
         max_steps=100,
         see_through_walls=False,
-        seed=52,
+        seed=2022,
         agent_view_size=7,
         n_agents=3,
         competitive=False,

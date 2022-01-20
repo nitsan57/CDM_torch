@@ -465,7 +465,9 @@ class PDDLDomainParser(PDDLParser, PDDLDomain):
 
     def _parse_actions(self):
         start_ind = re.search(r"\(:actions", self.domain).start()
-        actions = self._find_balanced_expression(self.domain, start_ind)
+        # actions = self._find_balanced_expression(self.domain, start_ind)
+        last_indx = self.domain[start_ind:].find(")")
+        actions = self.domain[start_ind:start_ind+last_indx+1]
         actions = actions[9:-1].strip()
         return set(actions.split())
 

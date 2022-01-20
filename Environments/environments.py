@@ -1,26 +1,31 @@
-# from .taxi import SingleTaxiEnv
-# from .frozen import FrozenLakeEnv
+from collections import defaultdict
 
 
 def register_env(env):
     name = env.__name__
-    all_envs[name] = env
+    train_envs[name] = env
 
-def register_test_env(env):
-    name = env.__name__
-    test_envs[name] = env
-
-def get_all_avail_test_envs():
-    all_names  = []
-    for name in test_envs:
-        all_names.append(name)
-    return all_names
 
 def get_all_avail_envs():
     all_names  = []
-    for name in all_envs:
+    for name in train_envs:
         all_names.append(name)
     return all_names
 
-all_envs = {}
-test_envs = {}
+
+def register_test_env(env, domain_name, difficulty):
+    name = env.__name__
+    test_envs[domain_name][difficulty][name] = env
+
+
+def get_all_avail_test_envs(domain_name, difficulty):
+    all_names  = []
+    for name in test_envs[domain_name][difficulty]:
+        all_names.append(name)
+    return all_names
+
+
+train_envs = {}
+test_envs = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: dict)))
+
+#defaultdict(defaultdict(defaultdict(dict)))

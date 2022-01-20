@@ -133,15 +133,15 @@ if hasattr(__loader__, 'name'):
 elif hasattr(__loader__, 'fullname'):
   module_path = __loader__.fullname
 
-register_test_env(Cluttered40Minigrid)
-register_test_env(Cluttered10Minigrid)
-register_test_env(Cluttered50Minigrid)
-register_test_env(Cluttered5Minigrid)
-register_test_env(Cluttered1MinigridMini)
-register_test_env(Cluttered6MinigridMini)
-register_test_env(Cluttered7MinigridMini)
-register_test_env(ClutteredMinigridLava)
-register_test_env(ClutteredMinigridLavaMini)
-register_test_env(ClutteredMinigridLavaMedium)
-register_test_env(Cluttered15MinigridMedium)
+register_test_env(Cluttered40Minigrid, "Maze", "hard")
+register_test_env(Cluttered10Minigrid, "Maze", "medium")
+register_test_env(Cluttered50Minigrid, "Maze", "hard")
+register_test_env(Cluttered5Minigrid, "Maze", "medium")
+register_test_env(Cluttered1MinigridMini, "Maze", "easy")
+register_test_env(Cluttered6MinigridMini, "Maze", "easy")
+register_test_env(Cluttered7MinigridMini, "Maze", "easy")
+register_test_env(ClutteredMinigridLava, "Maze", "hard")
+register_test_env(ClutteredMinigridLavaMini, "Maze", "medium")
+register_test_env(ClutteredMinigridLavaMedium, "Maze", "hard")
+register_test_env(Cluttered15MinigridMedium, "Maze", "medium")
 

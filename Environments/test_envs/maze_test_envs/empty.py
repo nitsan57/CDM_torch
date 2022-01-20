@@ -138,5 +138,5 @@ if hasattr(__loader__, 'name'):
 elif hasattr(__loader__, 'fullname'):
   module_path = __loader__.fullname
 
-register_test_env(EmptyRandomEnv6x6Minigrid)
-register_test_env(EmptyRandomEnv15x15Minigrid)
+register_test_env(EmptyRandomEnv6x6Minigrid, "Maze", "easy")
+register_test_env(EmptyRandomEnv15x15Minigrid, "Maze", "easy")
