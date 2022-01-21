@@ -73,7 +73,7 @@ class PAIRED_Curriculum_History_filter(Curriculum_Manager):
             action_buffer_index = self.trainee.experience.actions_index
             env_actions = teacher_exp[action_buffer_index]
             
-            env_action_representations = [env_actions[self.teacher_max_steps*j:self.teacher_max_steps*(j+1)] for j in range(number_of_envs_to_gen-1)]
+            env_action_representations = [env_actions[self.teacher_max_steps*j:self.teacher_max_steps*(j+1)].detach().cpu().numpy() for j in range(number_of_envs_to_gen-1)]
 
             env_scores = self.score_envs(env_action_representations, self.calc_env_normilized_dist)
             env_idx = self.chose_best_env_idx(env_scores, "history")

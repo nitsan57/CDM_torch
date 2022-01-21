@@ -14,7 +14,7 @@ from Curriculum_managers.curriculum_no_regulator_he import Curriculum_Unregulate
 import argparse
 
 def get_env(env_name):
-    env = train_envs[env_name](random_reset_loc=True)
+    env = train_envs[env_name]()
     n_actions = env.action_space.n
     obs_shape = env.observation_space
     return env, obs_shape, n_actions
