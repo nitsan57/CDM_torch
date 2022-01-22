@@ -8,6 +8,8 @@ from gym import utils
 from gym.envs.toy_text import discrete
 import gym
 from enum import IntEnum, Enum
+
+from Environments.base_curriculum_env import Base_Env
 from .environments import register_env
 # from social_rl.gym_multigrid import register
 
@@ -41,6 +43,7 @@ class RGBCOLORS_MINUS_50:
     BLUE = [0, 94, 205]  #
     MAGENTA = [205, 0, 205]  # -50
     CYAN = [0, 205, 205]  # -50
+    BROWN = [155, 77, 0]  # -50
 
 
 def create_empty_map(size):
@@ -91,7 +94,7 @@ def generate_random_map(size=8, p=0.8):
     return ["".join(x) for x in res]
 
 
-class FrozenLakeEnv(discrete.DiscreteEnv):
+class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
     """
     Winter is here. You and your friends were tossing around a frisbee at the
     park when you made a wild throw that left the frisbee out in the middle of
@@ -123,20 +126,19 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
         EAST = 2
         NORTH = 3
 
-    def __init__(self, desc=None, map_name=None, is_slippery=True, size=5, agent_view_size=3, max_steps=300, n_clutter=10, random_z_dim=50, n_agents=1, random_reset_loc=False):
+    def __init__(self, desc=None, map_name=None, is_slippery=True, size=5, agent_view_size=3, max_steps=300, n_clutter=4, random_z_dim=50, n_agents=1, random_reset_loc=False):
         ####PARAMS FOR PAIRED####
         self.agent_view_size = agent_view_size
         self.minigrid_mode = True
         self.size = size
         self.choose_goal_last = False
         self.max_steps = max_steps
-        n_clutter = int(size*size*0.6)
         self.n_clutter = n_clutter
         self.random_z_dim = random_z_dim
         self.num_rows = self.size
         self.num_columns = self.size
-        self.adversary_action_dim = self.num_rows * self.num_columns
-        self.adversary_max_steps = self.n_clutter + 2
+        self.generator_action_dim = self.num_rows * self.num_columns
+        self.generator_max_steps = self.n_clutter + 2
         self.fully_observed = True
         self.n_agents = 1
 
@@ -190,7 +192,7 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
             assert n_agents == 1
 
         self.origin_observation_space = self.observation_space
-        self.adversary_action_space = gym.spaces.Discrete(self.adversary_action_dim)
+        self.generator_action_space = gym.spaces.Discrete(self.generator_action_dim)
         self.adversary_image_obs_space = gym.spaces.Box(
             low=0,
             high=1,
@@ -200,8 +202,8 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
         self.adversary_randomz_obs_space = gym.spaces.Box(low=0, high=1.0, shape=(random_z_dim,), dtype=np.float32)
 
         self.adversary_ts_obs_space = gym.spaces.Box(
-            low=0, high=self.adversary_max_steps, shape=(1,), dtype='float32')
-        self.adversary_observation_space = gym.spaces.Dict(
+            low=0, high=self.generator_max_steps, shape=(1,), dtype='float32')
+        self.generator_observation_space = gym.spaces.Dict(
             {'image': self.adversary_image_obs_space,
              'time_step': self.adversary_ts_obs_space,
              'random_z': self.adversary_randomz_obs_space})
@@ -214,8 +216,8 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
         self.adversary_min_steps_for_init_map = len(self.step_order)
         self.adversary_step_done = False
         self.reset_metrics()
-        # self.reset()
         self.dummy_init()
+
 
     def encode(self, row, col):
         return row * self.ncol + col
@@ -224,6 +226,7 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
         col = int(s % self.num_columns)
         row = int(s // self.num_columns)
         return row, col
+
 
     def after_adversarial(self):
         ncol = self.ncol
@@ -256,6 +259,7 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
             done = bytes(newletter) in b"GH"
             reward = float(newletter == b"G")
             return newstate, reward, done
+
         self.all_legal_states_to_random_sample = []
         for row in range(nrow):
             for col in range(ncol):
@@ -278,6 +282,7 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
         super(FrozenLakeEnv, self).__init__(nS, nA, P, isd)
         self.observation_space = self.origin_observation_space
 
+
     def get_map_image(self, adversarial=False):
         h, w = len(self._str_map), len(self._str_map[0])
         rgb_map = np.zeros((h, w, 3)).astype(np.float32)
@@ -293,7 +298,7 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
                 elif char == "H":
                     cell_color = np.array(RGBCOLORS_MINUS_50.BLACK)  # gray-50
                 elif char == "G":
-                    cell_color = np.array(RGBCOLORS_MINUS_50.GREEN)  # gray-50
+                    cell_color = np.array(RGBCOLORS_MINUS_50.BROWN)  # gray-50
                 if (taxi_row, taxi_col) == (r_index, c_index):
                     cell_color += RGBCOLORS_MINUS_50.YELLOW
                     cell_color = (cell_color / 2).astype(np.float32)
@@ -309,25 +314,59 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
 
         return rgb_map / 255
 
+
     def update_map(self, loc_row, loc_column, char):
         temp_row = list(self._str_map[loc_row])  # to list
         temp_row[loc_column] = char
         self._str_map[loc_row] = "".join(temp_row)
         self.desc = np.asarray(self._str_map, dtype='c')
 
+
     def dummy_init(self):
         self.n_clutter_placed = 0
-        self.adversary_step_count = 0
+        self.generator_step_count = 0
         self._str_map = create_empty_map(self.size)
 
         for i in range(4):
-            self.step_adversary(i + 2*i)
+            self.step_generator(i + 2*i)
         self.reset_agent()
+
+        
+    def get_max_episode_steps(self):
+        return self.max_steps
+
+    def get_observation_space(self):
+        return self.observation_space
+    
+    def get_generator_observation_space(self):
+        return self.generator_observation_space
+
+    def get_action_space(self):
+        return self.action_space
+
+    def get_action_dim(self):
+        return self.action_space.n
+
+    def get_generator_action_space(self):
+        return self.generator_action_space
+
+    def get_generator_action_dim(self):
+        return self.generator_action_space.n
+        
+    def get_generator_max_steps(self):
+        return self.generator_max_steps
+
+    def reset_random(self):
+        self.clear_env()
+        for i in range(self.generator_max_steps):
+            loc = np.random.randint(self.get_generator_action_dim())
+            self.step_generator(loc)
+        return self.reset()
 
     # def reset(self):
     #     """Fully resets the environment to an empty grid with no agent or goal."""
     #     self.n_clutter_placed = 0
-    #     self.adversary_step_count = 0
+    #     self.generator_step_count = 0
     #     self._str_map = create_empty_map(self.size)
     #     self.desc = np.asarray(self._str_map, dtype='c')
     #     self.lastaction = None
@@ -339,11 +378,30 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
     #     self.step_count = 0
     #     obs = {
     #         'image': image,
-    #         'time_step': [self.adversary_step_count],
+    #         'time_step': [self.generator_step_count],
     #         'random_z': self.generate_random_z()
     #     }
 
     #     return obs
+
+    def clear_env(self):
+        """Fully resets the environment to an empty grid with no agent or goal."""
+        self.n_clutter_placed = 0
+        self.generator_step_count = 0
+        self._str_map = create_empty_map(self.size)
+        self.desc = np.asarray(self._str_map, dtype='c')
+        self.P = {s: {a: [] for a in range(self.nA)} for s in range(self.nS)}
+        # Extra metrics
+        self.reset_metrics()
+
+        image = self.get_map_image(adversarial=True)
+        # obs = {
+        #     'image': image,
+        #     'time_step': self.generator_step_count,
+        # }
+        obs = image
+        return obs
+
 
     def reset(self):
         self.reset_agent()
@@ -354,12 +412,12 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
         index = np.random.choice(free_indices)
         return index
 
+
     def reset_agent(self):
         """Resets the agent's start position, but leaves goal and walls."""
         # Remove the previous agents from the world
-        if self.adversary_step_count >= self.adversary_min_steps_for_init_map:
+        if self.generator_step_count >= self.adversary_min_steps_for_init_map:
             self.adversary_step_done = True
-            self.compute_shortest_path()
             self.after_adversarial()
         else:
             print("Error trying to reset agent before making adversarial step")
@@ -403,7 +461,7 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
         return obs, rewards, done, {"prob": p}
 
 
-    def step_adversary(self, loc):
+    def step_generator(self, loc):
         """The adversary gets n_clutter + 2 moves to place the goal, agent, blocks.
 
         The action space is the number of possible squares in the grid. The squares
@@ -417,9 +475,9 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
           Standard RL observation, reward (always 0), done, and info
         """
         step_order = self.step_order  # ["choose_goal", "choose_agnet"]  # else hollow places
-        current_turn = step_order[self.adversary_step_count] if self.adversary_step_count < len(step_order) else "place_hollow"
-        if loc >= self.adversary_action_dim:
-            raise ValueError('Position passed to step_adversary is outside the grid.')
+        current_turn = step_order[self.generator_step_count] if self.generator_step_count < len(step_order) else "place_hollow"
+        if loc >= self.generator_action_dim:
+            raise ValueError('Position passed to step_generator is outside the grid.')
 
         # Add offset of 1 for outside walls
         row, col = self.decode(loc)
@@ -439,7 +497,6 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
                 self.update_map(row, col, "S")
                 self.init_s = self.encode(row, col)
             else:
-                
                 while (row, col) == self.goal_loc:
                     row = np.random.randint(self.num_rows)
                     col = np.random.randint(self.num_columns)
@@ -448,29 +505,29 @@ class FrozenLakeEnv(discrete.DiscreteEnv):
                 self.init_s = self.encode(row, col)
 
         # Place hollow
-        elif self.adversary_step_count < self.adversary_max_steps:
+        elif self.generator_step_count < self.generator_max_steps:
             # If there is already an object there, action does nothing, also if it is on the grid bounderies
             agent_row, agent_col = self.decode(self.init_s)
             if (row, col) != (agent_row, agent_col):
                 self.update_map(row, col, "H")
             else:
-                indices = [i for i in range(self.size * self.size) if i != row * col]
+                indices = [i for i in range(self.size * self.size) if (i != agent_row * agent_col and i !=np.prod(self.goal_loc))]
                 chosen_index = np.random.choice(indices)
                 new_r, new_c = self.decode(chosen_index)
                 self.update_map(new_r, new_c, "H")
             self.n_clutter_placed += 1
 
-        self.adversary_step_count += 1
+        self.generator_step_count += 1
 
         # End of episode
-        if self.adversary_step_count >= self.adversary_max_steps:
+        if self.generator_step_count >= self.generator_max_steps:
             done = True
             self.reset_agent()
 
         image = self.get_map_image(adversarial=True)
         obs = {
             'image': image,
-            'time_step': [self.adversary_step_count],
+            'time_step': [self.generator_step_count],
             'random_z': self.generate_random_z()
         }
 
@@ -619,7 +676,7 @@ register_env(FrozenLakeEnv)
 #     env = FrozenLakeEnv()
 #     # debug_print(env._str_map)
 #     for i in range(3):
-#         env.step_adversary(2 * i)
+#         env.step_generator(2 * i)
 #     env.reset_agent()
 #     env.render()
 #     # debug_print(env._str_map)
