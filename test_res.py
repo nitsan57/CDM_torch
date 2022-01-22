@@ -1,5 +1,6 @@
 
 from Environments.environments import get_all_avail_test_envs, test_envs
+from Environments.adversarial import AdversarialEnv
 from Models import fc, rnn
 from Agents.dqn_agent import DQN_Agent
 from Agents.ppo_agent import PPO_Agent
@@ -307,8 +308,11 @@ def plot_results(domain_name, agent_names, weights_num, difficulties, results):
 
 
 def load_spaces(domain_name):
-    env_names = get_all_avail_test_envs(domain_name, "easy")
-    env = test_envs[domain_name]["easy"][env_names[0]]
+    if domain_name == "Maze":
+        env = AdversarialEnv()
+    else:
+        env_names = get_all_avail_test_envs(domain_name, "easy")
+        env = test_envs[domain_name]["easy"][env_names[0]]
     n_actions = env.get_action_space().n
     obs_shape = env.get_observation_space()
     return obs_shape, n_actions
@@ -339,7 +343,7 @@ def main(args):
             for difficulty in difficulties:
                 env_names = get_all_avail_test_envs(domain_name, difficulty)
                 mean_reward = 0
-                for env_name in env_names:      
+                for env_name in env_names:
                     env = test_envs[domain_name][difficulty][env_name]() #test_envs[domain_name][difficulty][env_names]()
                     reward = run_agent(agent, env)
                     mean_reward +=reward
