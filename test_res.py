@@ -308,7 +308,7 @@ def plot_results(domain_name, agent_names, weights_num, difficulties, results):
 
 def load_spaces(domain_name):
     env_names = get_all_avail_test_envs(domain_name, "easy")
-    env = test_envs[env_names[0]]()
+    env = test_envs[domain_name]["easy"][env_names[0]]
     n_actions = env.get_action_space().n
     obs_shape = env.get_observation_space()
     return obs_shape, n_actions
