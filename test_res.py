@@ -306,6 +306,10 @@ def plot_results(domain_name, agent_names, weights_num, difficulties, results):
         fig = pd.DataFrame(data=results[difficulty], index=agent_names, columns=weights_num).T.plot()
         fig.write_html(f"{domain_name}_{difficulty}.html")
 
+        smoothed = np.apply_along_axis(lambda m: np.convolve(m, np.ones(3)/3, mode='valid'), axis=1, arr=results[difficulty])
+        fig = pd.DataFrame(data=smoothed, index=agent_names, columns=weights_num).T.plot()
+        fig.write_html(f"{domain_name}_{difficulty}_smooth.html")
+
 
 
 def load_spaces(domain_name):
