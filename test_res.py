@@ -338,7 +338,7 @@ def main(args):
     all_results = {k:np.zeros((len(agent_names), len(weights_num))) for k in difficulties}
     for i,agent_name in enumerate(agent_names):
         for j,w in enumerate(weights_num):
-            f_name = f"./results/{agent_name}/{domain_folder_name}/_{w}_protagonist.ckpt"
+            f_name = f"./results/{agent_name}/{domain_folder_name}/_{w}_trainee.ckpt"
             agent.load_agent(f_name)
             for difficulty in difficulties:
                 env_names = get_all_avail_test_envs(domain_name, difficulty)
