@@ -308,7 +308,7 @@ def plot_results(domain_name, agent_names, weights_num, difficulties, results):
 
 def load_spaces(domain_name):
     env_names = get_all_avail_test_envs(domain_name, "easy")
-    env = test_envs[env_names]()
+    env = test_envs[env_names[0]]()
     n_actions = env.get_action_space().n
     obs_shape = env.get_observation_space()
     return obs_shape, n_actions
@@ -340,10 +340,11 @@ def main(args):
                 env_names = get_all_avail_test_envs(domain_name, difficulty)
                 mean_reward = 0
                 for env_name in env_names:
-                    env = test_envs[env_names]() #test_envs[domain_name][difficulty][env_names]()
+                    env = test_envs[env_name]() #test_envs[domain_name][difficulty][env_names]()
                     reward = run_agent(agent, env)
                     mean_reward +=reward
                 mean_reward /= len(env_names)
+                print(f"{difficulty}: {agent_names} :mean_reward")
                 all_results[difficulty][i][j] = mean_reward
     plot_results(domain_name, agent_names, weights_num, difficulties, all_results)
 
