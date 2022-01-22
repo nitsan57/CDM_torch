@@ -22,7 +22,7 @@ in one of four rooms.
 
 from Environments.taxi import SingleTaxiEnv
 from Environments.environments import register_test_env
-
+from .test_taxi_utils import init_for_test
 
 class GenericTaxi():
   """Classic 4 rooms gridworld environment.
@@ -44,55 +44,38 @@ class GenericTaxi():
           dimension.
         **kwargs: See superclass.
     """
-    easy_random_env_v0 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=True)
-    easy_random_env_v0.reset_random()
-    self.easy_random_env_v0 = lambda : easy_random_env_v0
+    self.easy_random_env_v0 = init_for_test(None, True, size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
     self.easy_random_env_v0.__name__ = "easy_random_env_v0"
 
-    easy_random_env_v1 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=True)
-    easy_random_env_v1.reset_random()
-    self.easy_random_env_v1 = lambda : easy_random_env_v1
+    self.easy_random_env_v1 = init_for_test(None, True, size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
     self.easy_random_env_v1.__name__ = "easy_random_env_v1"
 
-    easy_random_env_v2 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=True)
-    easy_random_env_v2.reset_random()
-    self.easy_random_env_v2 = lambda : easy_random_env_v2
+    self.easy_random_env_v2 = init_for_test(None, True, size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
     self.easy_random_env_v2.__name__ = "easy_random_env_v2"
-  ##MDIUM
-    medium_random_env_v0 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=4, n_agents=1, random_reset_loc=True)
-    medium_random_env_v0.reset_random()
-    self.medium_random_env_v0 = lambda : medium_random_env_v0
+
+    #Medium
+    self.medium_random_env_v0 = init_for_test(None, True, size=5, agent_view_size=3, max_steps=300, n_clutter=4, n_agents=1, random_reset_loc=False)
     self.medium_random_env_v0.__name__ = "medium_random_env_v0"
 
-    medium_random_env_v1 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=4, n_agents=1, random_reset_loc=True)
-    medium_random_env_v1.reset_random()
-    self.medium_random_env_v1 = lambda : medium_random_env_v1
+    self.medium_random_env_v0 = init_for_test(None, True, size=5, agent_view_size=3, max_steps=300, n_clutter=4, n_agents=1, random_reset_loc=False)
+    self.medium_random_env_v0.__name__ = "medium_random_env_v0"
+
+    self.medium_random_env_v1 = init_for_test(None, True, size=5, agent_view_size=3, max_steps=300, n_clutter=4, n_agents=1, random_reset_loc=False)
     self.medium_random_env_v1.__name__ = "medium_random_env_v1"
 
-
-    medium_random_env_v2 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=4, n_agents=1, random_reset_loc=True)
-    medium_random_env_v2.reset_random()
-    self.medium_random_env_v2 = lambda : medium_random_env_v2
+    self.medium_random_env_v2 = init_for_test(None, True, size=5, agent_view_size=3, max_steps=300, n_clutter=4, n_agents=1, random_reset_loc=False)
     self.medium_random_env_v2.__name__ = "medium_random_env_v2"
+    #Hard
 
-  #HARD
-    hard_random_env_v0 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=12, n_agents=1, random_reset_loc=True)
-    hard_random_env_v0.reset_random()
-    self.hard_random_env_v0 = lambda : hard_random_env_v0
+    self.hard_random_env_v0 = init_for_test(None, True, size=5, agent_view_size=3, max_steps=300, n_clutter=12, n_agents=1, random_reset_loc=False)
     self.hard_random_env_v0.__name__ = "hard_random_env_v0"
 
-    hard_random_env_v1 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=12, n_agents=1, random_reset_loc=True)
-    hard_random_env_v1.reset_random()
-    self.hard_random_env_v1 = lambda : hard_random_env_v1
+    self.hard_random_env_v1 = init_for_test(None, True, size=5, agent_view_size=3, max_steps=300, n_clutter=12, n_agents=1, random_reset_loc=False)
     self.hard_random_env_v1.__name__ = "hard_random_env_v1"
 
-    hard_random_env_v2 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=12, n_agents=1, random_reset_loc=True)
-    hard_random_env_v2.reset_random()
-    self.hard_random_env_v2 = lambda : hard_random_env_v2
+    self.hard_random_env_v2= init_for_test(None, True, size=5, agent_view_size=3, max_steps=300, n_clutter=12, n_agents=1, random_reset_loc=False)
     self.hard_random_env_v2.__name__ = "hard_random_env_v2"
-
-
-    # for obs_space in  
+    
 
 all_taxi_envs = GenericTaxi()
 

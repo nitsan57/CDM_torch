@@ -22,6 +22,7 @@ in one of four rooms.
 
 from Environments.taxi import SingleTaxiEnv
 from Environments.environments import register_test_env
+from .test_taxi_utils import init_for_test
 
 
 class GenericTaxi():
@@ -44,9 +45,7 @@ class GenericTaxi():
           dimension.
         **kwargs: See superclass.
     """
-    easy_empty_env_v0 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
-    easy_empty_env_v0.init_from_vec([0,5,2,1])
-    self.easy_empty_env_v0 = lambda : easy_empty_env_v0
+    self.easy_empty_env_v0 = init_for_test([0,5,2,1], False, size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
     self.easy_empty_env_v0.__name__ = "easy_empty_env_v0"
 
     easy_empty_env_v1 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
@@ -54,20 +53,16 @@ class GenericTaxi():
     self.easy_empty_env_v1 = lambda : easy_empty_env_v1
     self.easy_empty_env_v1.__name__ = "easy_empty_env_v1"
 
-    easy_empty_env_v2 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
-    easy_empty_env_v2.init_from_vec([5,0,2,1])
-    self.easy_empty_env_v2 = lambda : easy_empty_env_v2
+    self.easy_empty_env_v1 = init_for_test([15,5,2,1], False, size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
+    self.easy_empty_env_v1.__name__ = "easy_empty_env_v1"
+
+    self.easy_empty_env_v2 = init_for_test([5,0,2,1], False, size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
     self.easy_empty_env_v2.__name__ = "easy_empty_env_v2"
 
-
-    medium_empty_env_v0 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=4, n_agents=1, random_reset_loc=False)
-    medium_empty_env_v0.init_from_vec([1,24,5,0])
-    self.medium_empty_env_v0 = lambda : medium_empty_env_v0
+    self.medium_empty_env_v0 = init_for_test([1,24,5,0], False, size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
     self.medium_empty_env_v0.__name__ = "medium_empty_env_v0"
 
-    medium_empty_env_v1 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=4, n_agents=1, random_reset_loc=False)
-    medium_empty_env_v1.init_from_vec([24,1,5,0])
-    self.medium_empty_env_v1 = lambda : medium_empty_env_v1
+    self.medium_empty_env_v1 = init_for_test([24,1,5,0], False, size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
     self.medium_empty_env_v1.__name__ = "medium_empty_env_v1"
 
     # for obs_space in  

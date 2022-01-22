@@ -22,6 +22,7 @@ in one of four rooms.
 
 from Environments.taxi import SingleTaxiEnv
 from Environments.environments import register_test_env
+from .test_taxi_utils import init_for_test
 
 
 class GenericTaxi():
@@ -47,30 +48,21 @@ class GenericTaxi():
 
 
 
-
-
-    medium_mazed_env_v0 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
-    medium_mazed_env_v0.init_from_vec([14,1,5,0, 0,5,12,17,22])
-    self.medium_mazed_env_v0 = lambda : medium_mazed_env_v0
+    #Medium
+    self.medium_mazed_env_v0 = init_for_test([14,1,5,0, 0,5,12,17,22], False, size=5, agent_view_size=3, max_steps=300, n_clutter=4, n_agents=1, random_reset_loc=False)
     self.medium_mazed_env_v0.__name__ = "medium_mazed_env_v0"
 
-    medium_mazed_env_v1 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
-    medium_mazed_env_v1.init_from_vec([4,16,1,0, 0,5,2,7,22])
-    self.medium_mazed_env_v1 = lambda : medium_mazed_env_v1
+    self.medium_mazed_env_v1 = init_for_test([4,16,1,0, 0,5,2,7,22], False, size=5, agent_view_size=3, max_steps=300, n_clutter=12, n_agents=1, random_reset_loc=False)
     self.medium_mazed_env_v1.__name__ = "medium_mazed_env_v1"
 
-    hard_mazed_env_v0 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
-    hard_mazed_env_v0.init_from_vec([24,1,5,0, 0,5,10,15])
-    self.hard_mazed_env_v0 = lambda : hard_mazed_env_v0
+
+    #Hard
+    self.hard_mazed_env_v0 = init_for_test([24,1,5,0, 0,5,10,15], False, size=5, agent_view_size=3, max_steps=300, n_clutter=12, n_agents=1, random_reset_loc=False)
     self.hard_mazed_env_v0.__name__ = "hard_mazed_env_v0"
 
-    hard_mazed_env_v1 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
-    hard_mazed_env_v1.init_from_vec([24,1,5,0, 0,5,10,15, 6,11,16,21])
-    self.hard_mazed_env_v1 = lambda : hard_mazed_env_v1
+    self.hard_mazed_env_v1 = init_for_test([24,1,5,0, 0,5,10,15, 6,11,16,21], False, size=5, agent_view_size=3, max_steps=300, n_clutter=12, n_agents=1, random_reset_loc=False)
     self.hard_mazed_env_v1.__name__ = "hard_mazed_env_v1"
-
-    # for obs_space in  
-
+  
 all_taxi_envs = GenericTaxi()
 
 register_test_env(all_taxi_envs.medium_mazed_env_v0, "Taxi", "medium")
