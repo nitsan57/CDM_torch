@@ -339,8 +339,8 @@ def main(args):
             for difficulty in difficulties:
                 env_names = get_all_avail_test_envs(domain_name, difficulty)
                 mean_reward = 0
-                for env_name in env_names:
-                    env = test_envs[env_name]() #test_envs[domain_name][difficulty][env_names]()
+                for env_name in env_names:      
+                    env = test_envs[domain_name][difficulty][env_name]() #test_envs[domain_name][difficulty][env_names]()
                     reward = run_agent(agent, env)
                     mean_reward +=reward
                 mean_reward /= len(env_names)
