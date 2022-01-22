@@ -299,10 +299,11 @@ def compare_curriculum_weights_avg_reward(all_env_names, agent_names, agent_mode
         fig.show()
     return all_rewards
 
+
 def plot_results(domain_name, agent_names, weights_num, difficulties, results):    
 
     for difficulty in difficulties:        
-        fig = pd.DataFrame(data=results[difficulty], index=agent_names, columns=weights_num)
+        fig = pd.DataFrame(data=results[difficulty], index=agent_names, columns=weights_num).T.plot()
         fig.write_html(f"{domain_name}_{difficulty}.html")
 
 
@@ -318,20 +319,10 @@ def load_spaces(domain_name):
     return obs_shape, n_actions
     
 
-def main(args):
-    agent_names = ['Random_Curriculum','PAIRED_Curriculum', 'PAIRED_Curriculum_OR', 'PAIRED_Curriculum_History_filter', 'PAIRED_Curriculum_History_filter_Entropy', 'PAIRED_Curriculum_Original_R_History_filter_Entropy', 'Curriculum_Unregulated_Entropy_History']
-
+def cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties):
     device = utils.init_torch()
-    domain_name = "Maze"
-    domain_folder_name = "MiniAdversarialEnv"
 
-
-
-    last_ckpt = 80099
-    ckpt_diff = 5000
-    weights_num = list(range(last_ckpt,ckpt_diff,-ckpt_diff))[::-1]
     
-    difficulties = ["easy", "medium", "hard"]
     obs_shape, n_actions = load_spaces(domain_name)
     agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
 
@@ -348,8 +339,25 @@ def main(args):
                     reward = run_agent(agent, env)
                     mean_reward +=reward
                 mean_reward /= len(env_names)
-                print(f"{difficulty}: {agent_names} :mean_reward")
+                print(f"{difficulty}: {agent_name} :{mean_reward}")
                 all_results[difficulty][i][j] = mean_reward
+    return all_results
+
+
+
+def main(args):
+    difficulties = ["easy", "medium", "hard"]
+    agent_names = ['Random_Curriculum','PAIRED_Curriculum', 'PAIRED_Curriculum_OR', 'PAIRED_Curriculum_History_filter', 'PAIRED_Curriculum_History_filter_Entropy', 'PAIRED_Curriculum_Original_R_History_filter_Entropy', 'Curriculum_Unregulated_Entropy_History']
+    domain_name = "Maze"
+    domain_folder_name = "MiniAdversarialEnv"
+
+
+    last_ckpt = 89999
+    ckpt_diff = 5000
+    weights_num = list(range(last_ckpt,ckpt_diff,-ckpt_diff))[::-1]
+
+    all_results = cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties)
+
     plot_results(domain_name, agent_names, weights_num, difficulties, all_results)
 
 
