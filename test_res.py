@@ -323,9 +323,8 @@ def load_spaces(domain_name):
     return obs_shape, n_actions
     
 
-def cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties):
+def cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties, num_iters):
     device = utils.init_torch()
-
     
     obs_shape, n_actions = load_spaces(domain_name)
     agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
@@ -340,7 +339,7 @@ def cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties
                 mean_reward = 0
                 for env_name in env_names:
                     env = test_envs[domain_name][difficulty][env_name]() #test_envs[domain_name][difficulty][env_names]()
-                    reward = run_agent(agent, env)
+                    reward = run_agent(agent, env,num_iters=num_iters)
                     mean_reward +=reward
                 mean_reward /= len(env_names)
                 print(f"{difficulty}: {agent_name} :{mean_reward}")
@@ -358,9 +357,10 @@ def main(args):
 
     last_ckpt = 89999
     ckpt_diff = 5000
+    num_iters = 5
     weights_num = list(range(last_ckpt,ckpt_diff,-ckpt_diff))[::-1]
 
-    all_results = cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties)
+    all_results = cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties, num_iters)
 
     plot_results(domain_name, agent_names, weights_num, difficulties, all_results)
 
