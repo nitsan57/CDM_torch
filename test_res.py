@@ -346,7 +346,6 @@ def cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties
                 # mean_reward /= len(env_names)
                 # print(f"{difficulty}: {agent_name} :{mean_reward}")
                 # all_results[difficulty][i][j] = mean_reward
-                all_results[difficulty][i].append()
     return all_results
 
 
@@ -358,9 +357,9 @@ def main(args):
     domain_folder_name = "MiniAdversarialEnv"
 
 
-    last_ckpt = 89999
+    last_ckpt = 139999
     ckpt_diff = 5000
-    num_iters = 5
+    num_iters = 2
     weights_num = list(range(last_ckpt,ckpt_diff,-ckpt_diff))[::-1]
 
     all_results = cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties, num_iters)
