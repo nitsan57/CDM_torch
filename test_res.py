@@ -330,22 +330,17 @@ def cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties
     obs_shape, n_actions = load_spaces(domain_name)
     agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
 
-    all_results = {k:[list()]*len(agent_names) for k in difficulties}
+    all_results = {k:[list() for _ in range(len(agent_names))] for k in difficulties}
     for i,agent_name in enumerate(agent_names):
         for j,w in enumerate(weights_num):
             f_name = f"./results/{agent_name}/{domain_folder_name}/_{w}_trainee.ckpt"
             agent.load_agent(f_name)
             for difficulty in difficulties:
                 env_names = get_all_avail_test_envs(domain_name, difficulty)
-                # mean_reward = 0
                 for env_name in env_names:
                     env = test_envs[domain_name][difficulty][env_name]() #test_envs[domain_name][difficulty][env_names]()
                     reward = run_agent(agent, env,num_iters=num_iters)
-                    # mean_reward +=reward
                     all_results[difficulty][i].append(reward)
-                # mean_reward /= len(env_names)
-                # print(f"{difficulty}: {agent_name} :{mean_reward}")
-                # all_results[difficulty][i][j] = mean_reward
     return all_results
 
 
