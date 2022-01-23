@@ -203,10 +203,11 @@ class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
 
         self.adversary_ts_obs_space = gym.spaces.Box(
             low=0, high=self.generator_max_steps, shape=(1,), dtype='float32')
-        self.generator_observation_space = gym.spaces.Dict(
-            {'image': self.adversary_image_obs_space,
-             'time_step': self.adversary_ts_obs_space,
-             'random_z': self.adversary_randomz_obs_space})
+        # self.generator_observation_space = gym.spaces.Dict(
+        #     {'image': self.adversary_image_obs_space,
+        #     #  'time_step': self.adversary_ts_obs_space
+        #      })
+        self.generator_observation_space = self.adversary_image_obs_space
 
         #NORMAL INIT##
         self.max_row = self.num_rows - 1
@@ -394,10 +395,15 @@ class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
         # Extra metrics
         self.reset_metrics()
 
-        image = self.get_map_image(adversarial=True)
+        
         # obs = {
         #     'image': image,
         #     'time_step': self.generator_step_count,
+        # }
+        image = self.get_map_image(adversarial=True)
+        # obs = {
+        #     'image': image,
+        #     # 'time_step': [self.generator_step_count],
         # }
         obs = image
         return obs
@@ -525,11 +531,12 @@ class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
             self.reset_agent()
 
         image = self.get_map_image(adversarial=True)
-        obs = {
-            'image': image,
-            'time_step': [self.generator_step_count],
-            'random_z': self.generate_random_z()
-        }
+        # obs = {
+        #     'image': image,
+        #     # 'time_step': [self.generator_step_count],
+        # }
+        obs = image
+
 
         return obs, 0, done, {}
 
@@ -661,30 +668,3 @@ class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
 
 register_env(FrozenLakeEnv)
 
-# if hasattr(__loader__, 'name'):
-#     module_path = __loader__.name
-# elif hasattr(__loader__, 'fullname'):
-#     module_path = __loader__.fullname
-
-# register.register(
-#     env_id='MultiGrid-FrozenEnv-v0',
-#     entry_point=module_path + ':FrozenLakeEnv'
-# )
-
-
-# if __name__ == '__main__':
-#     env = FrozenLakeEnv()
-#     # debug_print(env._str_map)
-#     for i in range(3):
-#         env.step_generator(2 * i)
-#     env.reset_agent()
-#     env.render()
-#     # debug_print(env._str_map)
-
-#     new_env = env
-#     new_env.reset_agent()
-#     new_env.render()
-#     for _ in range(50):
-#         next_s, r, done, prob = new_env.step(1)
-#     new_env.render()
-#     print(new_env.s, r)
