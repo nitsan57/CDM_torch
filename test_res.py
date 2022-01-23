@@ -308,7 +308,7 @@ def plot_results(domain_name, agent_names, weights_num, difficulties, results):
         fig.write_html(f"{domain_name}_{difficulty}.html")
 
         smoothed = np.apply_along_axis(lambda m: np.convolve(m, np.ones(3)/3, mode='valid'), axis=1, arr=results[difficulty])
-        fig = pd.DataFrame(data=smoothed, index=agent_names, columns=weights_num).T.plot()
+        fig = pd.DataFrame(data=smoothed[:len(smoothed)], index=agent_names, columns=weights_num[:len(smoothed[0])]).T.plot()
         fig.write_html(f"{domain_name}_{difficulty}_smooth.html")
 
 
@@ -365,7 +365,7 @@ def main(args):
 
     all_results = cacl(domain_folder_name, domain_name, agent_names, weights_num, difficulties, num_iters)
     with open('results.pickle', 'wb') as handle:
-        pickle.dump(handle, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(all_results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # plot_results(domain_name, agent_names, weights_num, difficulties, all_results)
 
