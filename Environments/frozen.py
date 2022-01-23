@@ -184,8 +184,8 @@ class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
                 shape=obs_image_shape,
                 dtype='float32')
 
-            observation_space = {'image': self.image_obs_space}
-            self.observation_space = gym.spaces.Dict(observation_space)
+            observation_space = self.image_obs_space
+            self.observation_space = observation_space #gym.spaces.Dict(observation_space)
 
         else:
             print("OTHER MOD NOT SUPPORTED!!")
@@ -404,7 +404,7 @@ class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
 
 
     def reset(self):
-        self.reset_agent()
+        return self.reset_agent()
         
 
     def find_free_space(self):
