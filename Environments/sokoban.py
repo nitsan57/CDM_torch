@@ -88,6 +88,8 @@ class Sokoban(Base_Env):
     def __init__(self) -> None:
         super().__init__()
         # edit problem file
+        self.curr_step= 0
+        self.max_steps = 250
         self.pddl_env = None
         self.size = 5
         self.generator_max_steps = 9
@@ -210,7 +212,9 @@ class Sokoban(Base_Env):
         return self.generator_action_dim
 
     def reset(self,):
-        return self.pddl_env.reset()
+        self.curr_step= 0
+        self.pddl_env.reset()
+        return self.get_observation()
 
     def clear_env(self,):
         self.generator_step_count = 0
@@ -231,7 +235,12 @@ class Sokoban(Base_Env):
             a = actions[0]
         else:
             a = actions
-        return self.pddl_env.step(a)
+        s,r,d,_ =  self.pddl_env.step(a)
+        self.curr_step+=1
+        if self.curr_step> self.max_steps:
+            d = True
+            self.curr_step = 0
+        return s,r,d,_
 
     def render(self,mode="rgb_array"):
         return (self.pddl_env.render("human_crisp")*255).astype(np.uint8)
