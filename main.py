@@ -15,7 +15,7 @@ import argparse
 
 def get_env(env_name):
     env = train_envs[env_name]()
-    n_actions = env.action_space.n
+    n_actions = env.get_action_space().n
     obs_shape = env.get_observation_space()
 
     return env, obs_shape, n_actions
