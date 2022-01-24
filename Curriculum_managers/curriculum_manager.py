@@ -127,6 +127,12 @@ class Curriculum_Manager(ABC):
             env_scores.append(env_score)
         return env_scores
 
+    def calc_env_normilized_dist(self, new_env_actions):
+        global_max_dist = np.sum(np.ones(self.teacher_max_steps)*self.teacher_action_dim)
+        env_dist = global_max_dist
+        for h_e in self.history_env_list:
+            env_dist = min(np.sum(np.abs(new_env_actions - h_e), env_dist))
+        return env_dist / global_max_dist
 
     @abstractmethod
     def teach(self):

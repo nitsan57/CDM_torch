@@ -19,15 +19,6 @@ class PAIRED_Curriculum_History_filter(Curriculum_Manager):
         super().__init__(abstract_env, trainee, save_dir)
         
     
-
-    def calc_env_normilized_dist(self, new_env_actions):
-        global_max_dist = np.sum(np.ones(self.teacher_max_steps)*self.teacher_action_dim)
-        env_dist = 0
-        for h_e in self.history_env_list:
-            env_dist = max(np.sum(np.abs(new_env_actions - h_e), env_dist))
-        return env_dist / global_max_dist
-
-
     def add_to_history(self, new_env_actions):
         env_dist = self.calc_env_normilized_dist(new_env_actions)
         if env_dist != 0:

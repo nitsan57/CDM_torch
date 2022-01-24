@@ -207,6 +207,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
 
     def get_generator_action_dim(self):
         return self.generator_action_space.n
+        
     def get_generator_max_steps(self):
         return self.generator_max_steps
     
@@ -619,10 +620,6 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         obs = image
         return obs
 
-    # def reset(self):
-    #     self.s = self.init_s  # discrete.categorical_sample(self.isd, self.np_random)  # init at random state
-    #     self.last_action = None
-    #     return int(self.s)
 
     def compute_shortest_path(self):
         "Currently supports single agent only"
