@@ -67,7 +67,7 @@ class Curriculum_Unregulated_Entropy_History(Curriculum_Manager):
         global_max_dist = np.sum(np.ones(self.teacher_max_steps)*self.teacher_action_dim)
         env_dist = global_max_dist
         for h_e in self.history_env_list:
-            env_dist = min(np.sum(np.abs(new_env_actions - h_e), env_dist))
+            env_dist = min(np.sum(np.abs(new_env_actions - h_e)), env_dist)
             
         if env_dist != 0:
             self.history_env_list.append(new_env_actions)
