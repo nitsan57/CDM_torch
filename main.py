@@ -16,7 +16,8 @@ import argparse
 def get_env(env_name):
     env = train_envs[env_name]()
     n_actions = env.action_space.n
-    obs_shape = env.observation_space
+    obs_shape = env.get_observation_space()
+
     return env, obs_shape, n_actions
 
 
@@ -35,6 +36,7 @@ def main(args):
     env, obs_shape, n_actions = get_env(env_name)
     gen_obs_shape = env.get_generator_observation_space()
     gen_action_dim = env.get_generator_action_space().n
+
 
     p_agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
     teacher_agent = PPO_Agent(gen_obs_shape, gen_action_dim, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
