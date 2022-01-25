@@ -48,10 +48,6 @@ class GenericTaxi():
     self.easy_empty_env_v0 = init_for_test([0,5,2,1], False, size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
     self.easy_empty_env_v0.__name__ = "easy_empty_env_v0"
 
-    easy_empty_env_v1 = SingleTaxiEnv(size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
-    easy_empty_env_v1.init_from_vec([0,5,2,1])
-    self.easy_empty_env_v1 = lambda : easy_empty_env_v1
-    self.easy_empty_env_v1.__name__ = "easy_empty_env_v1"
 
     self.easy_empty_env_v1 = init_for_test([15,5,2,1], False, size=5, agent_view_size=3, max_steps=300, n_clutter=0, n_agents=1, random_reset_loc=False)
     self.easy_empty_env_v1.__name__ = "easy_empty_env_v1"
