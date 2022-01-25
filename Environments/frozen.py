@@ -514,7 +514,7 @@ class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
         elif self.generator_step_count < self.generator_max_steps:
             # If there is already an object there, action does nothing, also if it is on the grid bounderies
             agent_row, agent_col = self.decode(self.init_s)
-            if (row, col) != (agent_row, agent_col):
+            if (row, col) != (agent_row, agent_col) and (row, col) !=self.goal_loc:
                 self.update_map(row, col, "H")
             else:
                 indices = [i for i in range(self.size * self.size) if (i != agent_row * agent_col and i !=np.prod(self.goal_loc))]
@@ -647,6 +647,15 @@ class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
 
     def generate_random_z(self):
         return np.random.uniform(size=(self.random_z_dim,)).astype(np.float32)
+
+
+    def init_from_vec(self, vec):
+        """encoded number of loc"""
+        self.clear_env()
+        for v in vec:
+            self.step_generator(v)
+        self.reset()
+
 
     def init_print_mode(self):
         all_map = []
