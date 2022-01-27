@@ -23,5 +23,6 @@ simultaneously registered with Gym as a package.
 
 from .random_frozen import *
 from .empty_frozen import *
+from .mixed_frozen import *
 
 

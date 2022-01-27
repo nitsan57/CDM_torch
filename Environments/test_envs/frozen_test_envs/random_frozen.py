@@ -44,68 +44,69 @@ class GenericFrozen():
           dimension.
         **kwargs: See superclass.
     """
-    self.easy_random_env_v0 = init_for_test([0,5, 9, 10], n_clutter=4)
+    self.easy_random_env_v0 = init_for_test([0,5, 9], n_clutter=1)
     self.easy_random_env_v0.__name__ = "easy_random_env_v0"
 
-    self.easy_random_env_v1 = init_for_test([20,15, 0,5], n_clutter=4)
+    self.easy_random_env_v1 = init_for_test([20,15, 5], n_clutter=1)
     self.easy_random_env_v1.__name__ = "easy_random_env_v1"
 
-    self.easy_random_env_v2 = init_for_test([6,2, 0,20], n_clutter=4)
+    self.easy_random_env_v2 = init_for_test([6,2, 0], n_clutter=1)
     self.easy_random_env_v2.__name__ = "easy_random_env_v2"
 
-    self.easy_random_env_v3 = init_for_test([0,5, 9, 0], n_clutter=4)
+    self.easy_random_env_v3 = init_for_test([0,5, 9], n_clutter=1)
     self.easy_random_env_v3.__name__ = "easy_random_env_v3"
 
-    self.easy_random_env_v4 = init_for_test([20,15, 20,15], n_clutter=4)
+    self.easy_random_env_v4 = init_for_test([20,15, 20], n_clutter=1)
     self.easy_random_env_v4.__name__ = "easy_random_env_v4"
 
     self.easy_random_env_v5 = init_for_test([20,2], n_clutter=4)
     self.easy_random_env_v5.__name__ = "easy_random_env_v5"
-    #Medium
-    self.medium_random_env_v0 = init_for_test([0,7, 3, 9, 10, 12, 14], n_clutter=6)
+    # mddium
+
+    self.medium_random_env_v0 = init_for_test([0,9, 15, 3], n_clutter=2)
     self.medium_random_env_v0.__name__ = "medium_random_env_v0"
 
-    self.medium_random_env_v1 = init_for_test([0,5, 3,10,4], n_clutter=4)
+    self.medium_random_env_v1 = init_for_test([20,15, 5], n_clutter=2)
     self.medium_random_env_v1.__name__ = "medium_random_env_v1"
 
-    self.medium_random_env_v2 = init_for_test([21,0,1,3,10], n_clutter=6)
+    self.medium_random_env_v2 = init_for_test([10,2, 5,19], n_clutter=2)
     self.medium_random_env_v2.__name__ = "medium_random_env_v2"
 
-    self.medium_random_env_v3 = init_for_test([22,1, 0,15,13], n_clutter=6)
+    self.medium_random_env_v3 = init_for_test([0,5, 9,20], n_clutter=2)
     self.medium_random_env_v3.__name__ = "medium_random_env_v3"
 
+    self.medim_random_env_v4 = init_for_test([20,15, 0, 10], n_clutter=2)
+    self.medim_random_env_v4.__name__ = "medim_random_env_v4"
 
-    self.medium_random_env_v4 = init_for_test([0,7, 3, 9, 10, 12, 14], n_clutter=6)
-    self.medium_random_env_v4.__name__ = "medium_random_env_v4"
-
-    self.medium_random_env_v5 = init_for_test([0,5, 0,0], n_clutter=4)
+    self.medium_random_env_v5 = init_for_test([20,2, 16,24], n_clutter=2)
     self.medium_random_env_v5.__name__ = "medium_random_env_v5"
-
-    self.medium_random_env_v6 = init_for_test([21,0, 0,0], n_clutter=6)
-    self.medium_random_env_v6.__name__ = "medium_random_env_v6"
-
-    self.medium_random_env_v7 = init_for_test([22,1,0,0,0], n_clutter=6)
-    self.medium_random_env_v7.__name__ = "medium_random_env_v7"
     #Hard
 
-    self.hard_random_env_v0 = init_for_test([24,0, 14,17,20,22], n_clutter=6)
+    self.hard_random_env_v0 = init_for_test([0,7, 3, 9, 12, 14], n_clutter=4)
     self.hard_random_env_v0.__name__ = "hard_random_env_v0"
 
-    self.hard_random_env_v1 = init_for_test([10,24,10,11,17,22,15 ], n_clutter=7)
+    self.hard_random_env_v1 = init_for_test([0,5, 3,10,4], n_clutter=4)
     self.hard_random_env_v1.__name__ = "hard_random_env_v1"
 
-    self.hard_random_env_v2= init_for_test([5,20, 6,21,15,17,23,19], n_clutter=7)
+    self.hard_random_env_v2 = init_for_test([21,0,1,3,10], n_clutter=4)
     self.hard_random_env_v2.__name__ = "hard_random_env_v2"
 
-
-    self.hard_random_env_v3 = init_for_test([0,24,1,2,12,22,17,20], n_clutter=7)
+    self.hard_random_env_v3 = init_for_test([22,1, 0,15,13], n_clutter=4)
     self.hard_random_env_v3.__name__ = "hard_random_env_v3"
 
-    self.hard_random_env_v4 = init_for_test([0,14,1,2,3,20,22,23 ], n_clutter=7)
+
+    self.hard_random_env_v4 = init_for_test([0,7, 3, 9, 10, 12], n_clutter=4)
     self.hard_random_env_v4.__name__ = "hard_random_env_v4"
 
-    self.hard_random_env_v5= init_for_test([3,19,18,5,7,9,12], n_clutter=7)
+    self.hard_random_env_v5 = init_for_test([0,5, 0,0], n_clutter=4)
     self.hard_random_env_v5.__name__ = "hard_random_env_v5"
+
+    self.hard_random_env_v6 = init_for_test([21,0, 0,0], n_clutter=6)
+    self.hard_random_env_v6.__name__ = "hard_random_env_v6"
+
+    self.hard_random_env_v7 = init_for_test([22,1,0,0,0], n_clutter=6)
+    self.hard_random_env_v7.__name__ = "hard_random_env_v7"
+
     
 
 all_frozen_envs = GenericFrozen()
@@ -121,18 +122,18 @@ register_test_env(all_frozen_envs.medium_random_env_v0, "Frozen", "medium")
 register_test_env(all_frozen_envs.medium_random_env_v1, "Frozen", "medium")
 register_test_env(all_frozen_envs.medium_random_env_v2, "Frozen", "medium")
 register_test_env(all_frozen_envs.medium_random_env_v3, "Frozen", "medium")
-register_test_env(all_frozen_envs.medium_random_env_v4, "Frozen", "medium")
+register_test_env(all_frozen_envs.medim_random_env_v4, "Frozen", "medium")
 register_test_env(all_frozen_envs.medium_random_env_v5, "Frozen", "medium")
-register_test_env(all_frozen_envs.medium_random_env_v6, "Frozen", "medium")
-register_test_env(all_frozen_envs.medium_random_env_v7, "Frozen", "medium")
 
 register_test_env(all_frozen_envs.hard_random_env_v0, "Frozen", "hard")
 register_test_env(all_frozen_envs.hard_random_env_v1, "Frozen", "hard")
 register_test_env(all_frozen_envs.hard_random_env_v2, "Frozen", "hard")
-register_test_env(all_frozen_envs.hard_random_env_v2, "Frozen", "hard")
 register_test_env(all_frozen_envs.hard_random_env_v3, "Frozen", "hard")
 register_test_env(all_frozen_envs.hard_random_env_v4, "Frozen", "hard")
 register_test_env(all_frozen_envs.hard_random_env_v5, "Frozen", "hard")
+register_test_env(all_frozen_envs.hard_random_env_v6, "Frozen", "hard")
+register_test_env(all_frozen_envs.hard_random_env_v7, "Frozen", "hard")
+
 
 
 
