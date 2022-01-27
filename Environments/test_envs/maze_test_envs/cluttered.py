@@ -55,17 +55,44 @@ class ClutteredMultiGrid(multigrid.MultiGridEnv):
     obs, reward, done, info = multigrid.MultiGridEnv.step(self, action)
     return obs, reward, done, info
 
-
 class Cluttered40Minigrid(ClutteredMultiGrid):
 
   def __init__(self, **kwargs):
     super().__init__(n_agents=1, n_clutter=40, minigrid_mode=True, **kwargs)
+
+class Cluttered30Minigrid(ClutteredMultiGrid):
+
+  def __init__(self, **kwargs):
+    super().__init__(n_agents=1, n_clutter=30, minigrid_mode=True,seed=15 **kwargs)
+
+class Cluttered35Minigrid(ClutteredMultiGrid):
+
+  def __init__(self, **kwargs):
+    super().__init__(n_agents=1, n_clutter=35, minigrid_mode=True, **kwargs)
+
+
+class Cluttered30Minigrid_2(ClutteredMultiGrid):
+
+  def __init__(self, **kwargs):
+    super().__init__(n_agents=1, n_clutter=30, minigrid_mode=True, **kwargs)
+
+
+class Cluttered40Minigrid_2(ClutteredMultiGrid):
+
+  def __init__(self, **kwargs):
+    super().__init__(n_agents=1, n_clutter=40, minigrid_mode=True, seed=10,**kwargs)
+
 
 
 class Cluttered10Minigrid(ClutteredMultiGrid):
 
   def __init__(self, **kwargs):
     super().__init__(n_agents=1, n_clutter=10, minigrid_mode=True, **kwargs)
+
+class Cluttered10Minigrid_2(ClutteredMultiGrid):
+
+  def __init__(self, **kwargs):
+    super().__init__(n_agents=1, n_clutter=10, minigrid_mode=True, seed=10, **kwargs)
 
 
 class Cluttered50Minigrid(ClutteredMultiGrid):
@@ -79,6 +106,10 @@ class Cluttered5Minigrid(ClutteredMultiGrid):
   def __init__(self, **kwargs):
     super().__init__(n_agents=1, n_clutter=5, minigrid_mode=True, **kwargs)
 
+class Cluttered5Minigrid_2(ClutteredMultiGrid):
+
+  def __init__(self, **kwargs):
+    super().__init__(n_agents=1, n_clutter=5, minigrid_mode=True, seed=2, **kwargs)
 
 class Cluttered1MinigridMini(ClutteredMultiGrid):
 
@@ -100,6 +131,11 @@ class Cluttered7MinigridMini(ClutteredMultiGrid):
     super().__init__(n_agents=1, n_clutter=7, minigrid_mode=True, size=6,
                      **kwargs)
 
+class Cluttered7MinigridMini_2(ClutteredMultiGrid):
+
+  def __init__(self, **kwargs):
+    super().__init__(n_agents=1, n_clutter=7, minigrid_mode=True, size=6,seed=10,
+                     **kwargs)
 
 class ClutteredMinigridLava(ClutteredMultiGrid):
 
@@ -134,12 +170,19 @@ elif hasattr(__loader__, 'fullname'):
   module_path = __loader__.fullname
 
 register_test_env(Cluttered40Minigrid, "Maze", "hard")
+register_test_env(Cluttered30Minigrid, "Maze", "hard")
+register_test_env(Cluttered35Minigrid, "Maze", "hard")
+register_test_env(Cluttered30Minigrid_2, "Maze", "hard")
+register_test_env(Cluttered40Minigrid_2, "Maze", "hard")
 register_test_env(Cluttered10Minigrid, "Maze", "medium")
+register_test_env(Cluttered10Minigrid_2, "Maze", "medium")
 register_test_env(Cluttered50Minigrid, "Maze", "hard")
 register_test_env(Cluttered5Minigrid, "Maze", "medium")
+register_test_env(Cluttered5Minigrid_2, "Maze", "medium")
 register_test_env(Cluttered1MinigridMini, "Maze", "easy")
 register_test_env(Cluttered6MinigridMini, "Maze", "easy")
 register_test_env(Cluttered7MinigridMini, "Maze", "easy")
+register_test_env(Cluttered7MinigridMini_2, "Maze", "easy")
 register_test_env(ClutteredMinigridLava, "Maze", "hard")
 register_test_env(ClutteredMinigridLavaMini, "Maze", "medium")
 register_test_env(ClutteredMinigridLavaMedium, "Maze", "hard")
