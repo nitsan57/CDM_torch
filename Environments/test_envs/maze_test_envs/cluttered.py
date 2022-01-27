@@ -63,7 +63,7 @@ class Cluttered40Minigrid(ClutteredMultiGrid):
 class Cluttered30Minigrid(ClutteredMultiGrid):
 
   def __init__(self, **kwargs):
-    super().__init__(n_agents=1, n_clutter=30, minigrid_mode=True,seed=15 **kwargs)
+    super().__init__(n_agents=1, n_clutter=30, minigrid_mode=True,seed=15, **kwargs)
 
 class Cluttered35Minigrid(ClutteredMultiGrid):
 
