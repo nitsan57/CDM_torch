@@ -109,7 +109,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         DROPOFF = DROPOFF
         REFUEL = REFUEL
 
-    def __init__(self, size=5, agent_view_size=3, max_steps=300, n_clutter=6, n_agents=1, random_reset_loc=False):
+    def __init__(self, size=5, agent_view_size=3, max_steps=100, n_clutter=5, n_agents=1, random_reset_loc=False):
         ####PARAMS FOR PAIRED####
         self.agent_view_size = agent_view_size
         self.minigrid_mode = True

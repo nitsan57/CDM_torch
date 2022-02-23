@@ -12,7 +12,7 @@ from enum import IntEnum, Enum
 from Environments.base_curriculum_env import Base_Env
 from .environments import register_env
 # from social_rl.gym_multigrid import register
-
+import cv2
 
 LEFT = 0
 DOWN = 1
@@ -126,7 +126,7 @@ class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
         EAST = 2
         NORTH = 3
 
-    def __init__(self, desc=None, map_name=None, is_slippery=True, size=5, agent_view_size=3, max_steps=300, n_clutter=4, random_z_dim=50, n_agents=1, random_reset_loc=False):
+    def __init__(self, desc=None, map_name=None, is_slippery=True, size=5, agent_view_size=3, max_steps=200, n_clutter=4, random_z_dim=50, n_agents=1, random_reset_loc=False):
         ####PARAMS FOR PAIRED####
         self.agent_view_size = agent_view_size
         self.minigrid_mode = True
@@ -625,8 +625,9 @@ class FrozenLakeEnv(discrete.DiscreteEnv, Base_Env):
         return obs
 
     def render(self, mode="human"):
+        image = self.get_observation()
         if mode == "rgb_array":
-            return self.get_map_image()
+            return cv2.resize((self.get_map_image()*255).astype(np.uint8),dsize=(220, 220), interpolation=cv2.INTER_NEAREST)
         outfile = StringIO() if mode == "ansi" else sys.stdout
 
         row, col = self.s // self.ncol, self.s % self.ncol

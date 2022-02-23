@@ -58,6 +58,7 @@ class Curriculum_Manager(ABC):
 
     def save_ckpts(self, i, extra_meta_data=None):
         self.save_models(i)
+        # extra_meta_data["agent_train_rewards"] = self.trainee.
         self.save_meta_data(i, extra_meta_data)
 
 
@@ -90,11 +91,6 @@ class Curriculum_Manager(ABC):
         env_list = []
         if teacher_eval_mode:
                 self.teacher.set_eval_mode()
-            #     obs = a_env.clear_env()
-            #     for i in range(self.teacher_max_steps):
-            #         a = self.teacher.act(obs)
-            #         a_env.step_generator(a)
-
         else:
             self.teacher.set_train_mode()
 
@@ -137,6 +133,77 @@ class Curriculum_Manager(ABC):
     @abstractmethod
     def teach(self):
         raise NotImplementedError
+
+    # def teach_changed_rewards(self, n_iters, n_episodes=8):
+    #     self.set_agents_to_train_mode()
+    #     number_episodes_for_regret_calc = 4 # same as paired paper
+    #     self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
+    #     self.antagonist.set_num_parallel_env(number_episodes_for_regret_calc)
+    #     all_mean_rewards = []
+    #     pbar = tqdm(range(self.curr_iter, n_iters))
+    #     number_of_envs_to_gen = 1
+
+    #     for itr in pbar:
+    #         envs = self.create_envs(number_of_envs_to_gen, teacher_eval_mode=False)
+    #         # in paired we create single env
+    #         env = envs[0]
+    #         self.write_env(env, itr)
+    #         # env = ParallelEnv(env, number_episodes_for_regret_calc)
+    #         trainee_mean_r = 0
+    #         total_anta_max_r = 0
+    #         for i in range(n_episodes):
+    #             trainee_rewards = self.trainee.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc) #collect a single episode experience - controled in num_env_parallel in each agent
+    #             antagonist_rewards = self.antagonist.collect_episode_obs(env, max_episode_len=self.max_episode_steps, num_to_collect=number_episodes_for_regret_calc)
+
+    #             trainee_rewards = [np.sum(r) for r in trainee_rewards]
+    #             antagonist_rewards = [np.sum(r) for r in antagonist_rewards]
+
+    #             trainee_avg_r = np.mean(trainee_rewards)
+    #             trainee_max_r = np.max(trainee_rewards)
+    #             anta_avg_r = np.mean(antagonist_rewards)
+    #             anta_max_r = np.max(antagonist_rewards)
+    #             total_anta_max_r = max(anta_max_r, total_anta_max_r)
+
+    #             #Change agents update... as paired paper states..
+    #             # # update rewards:
+    #             reward_buffer_index = self.trainee.experience.reward_index
+
+    #             #sample last experiences
+    #             t_exp = self.trainee.get_last_collected_experiences(number_episodes_for_regret_calc) # maybe change to 1 on ppo?
+    #             a_exp = self.antagonist.get_last_collected_experiences(number_episodes_for_regret_calc) # maybe change to 1 on ppo?                
+
+    #             t_exp[reward_buffer_index] = t_exp[reward_buffer_index] - (anta_max_r) / self.max_episode_steps
+    #             a_exp[reward_buffer_index] = a_exp[reward_buffer_index] - (trainee_max_r) / self.max_episode_steps
+
+    #             self.trainee.update_policy(*t_exp)
+    #             self.antagonist.update_policy(*a_exp)
+
+    #             trainee_mean_r +=trainee_avg_r
+            
+    #         total_mean_r = trainee_mean_r/n_episodes
+    #         all_mean_rewards.append(total_mean_r)
+    #         entropy = self.get_trainne_entropy()
+    #         self.agent_train_entropy.append(entropy)
+    #         desciption = f"R:{np.round(total_mean_r, 2):08}, entropy: {entropy :01.4}"
+    #         pbar.set_description(desciption)
+
+    #         teacher_reward = (total_anta_max_r / self.max_episode_steps)- total_mean_r
+    #         teacher_exp = self.teacher.get_last_collected_experiences(number_of_envs_to_gen)
+    #         teacher_exp[reward_buffer_index][-1] = teacher_reward
+    #         self.teacher.update_policy(*teacher_exp)
+    #         self.teacher.clear_exp()
+    #         self.trainee.clear_exp()
+    #         self.antagonist.clear_exp()
+            
+    #         self.curr_iter = itr
+    #         if itr % self.save_agent_iters == self.near_save_coeff:
+    #             self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy})
+            
+
+    #     self.trainee.close_env_procs()
+    #     self.antagonist.close_env_procs()
+    #     return all_mean_rewards
+
 
 
     @abstractmethod

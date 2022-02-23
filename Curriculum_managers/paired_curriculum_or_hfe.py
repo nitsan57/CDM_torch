@@ -105,8 +105,10 @@ class PAIRED_Curriculum_Original_R_History_filter_Entropy(Curriculum_Manager):
                 teacher_reward +=normilized_entropy*entropy_coeff #incentivize entropy enducing env
 
 
-            chosen_env_idx = (self.teacher_max_steps)*env_idx-1 #in respect to actions-rewards-buffer
-            teacher_exp[reward_buffer_index][chosen_env_idx] = teacher_reward
+            # chosen_env_idx = (self.teacher_max_steps)*env_idx-1 #in respect to actions-rewards-buffer
+            # teacher_exp[reward_buffer_index][chosen_env_idx][-1] = teacher_reward
+            teacher_exp[reward_buffer_index] = teacher_exp[reward_buffer_index][:self.teacher_max_steps] 
+            teacher_exp[reward_buffer_index][-1] = teacher_reward
             self.teacher.update_policy(*teacher_exp)
             self.teacher.clear_exp()
             self.trainee.clear_exp()
