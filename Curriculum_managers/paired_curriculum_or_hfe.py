@@ -1,4 +1,5 @@
 import imp
+import pdb
 from .curriculum_manager import Curriculum_Manager
 from copy import deepcopy
 import torch
@@ -6,10 +7,7 @@ import os
 import numpy as np
 from Agents.agent_utils import ParallelEnv
 from tqdm import tqdm
-import functools
-import operator
 from scipy.stats import entropy as calc_entropy
-
 
 class PAIRED_Curriculum_Original_R_History_filter_Entropy(Curriculum_Manager):
     def __init__(self, abstract_env, trainee, teacher_agent, save_dir=None) -> None:
@@ -105,9 +103,16 @@ class PAIRED_Curriculum_Original_R_History_filter_Entropy(Curriculum_Manager):
                 teacher_reward +=normilized_entropy*entropy_coeff #incentivize entropy enducing env
 
 
-            # chosen_env_idx = (self.teacher_max_steps)*env_idx-1 #in respect to actions-rewards-buffer
+            chosen_env_idx = (self.teacher_max_steps)*env_idx+1 #in respect to actions-rewards-buffer
+            if chosen_env_idx == -1:
+                chosen_env_idx = 0
+
             # teacher_exp[reward_buffer_index][chosen_env_idx][-1] = teacher_reward
-            teacher_exp[reward_buffer_index] = teacher_exp[reward_buffer_index][:self.teacher_max_steps] 
+            # teacher_exp[reward_buffer_index] = teacher_exp[reward_buffer_index][:self.teacher_max_steps]
+            teacher_exp_new = []
+            for i,b in enumerate(teacher_exp):
+                teacher_exp_new.append(teacher_exp[i][chosen_env_idx:chosen_env_idx+self.teacher_max_steps])
+            teacher_exp = teacher_exp_new #= teacher_exp[:,chosen_env_idx:chosen_env_idx+self.teacher_max_steps]
             teacher_exp[reward_buffer_index][-1] = teacher_reward
             self.teacher.update_policy(*teacher_exp)
             self.teacher.clear_exp()

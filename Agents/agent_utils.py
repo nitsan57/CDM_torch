@@ -93,7 +93,7 @@ class ObsWraper:
                 for k, v in to_add.items():
                     if tensors:
                         self.dtype=torch.tensor
-                        self.data[k] = v
+                        self.data[k] = v.detach()
                     else:
                         self.dtype=np.array
                         self.data[k] = np.array(v)
