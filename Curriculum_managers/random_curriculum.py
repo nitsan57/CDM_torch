@@ -57,7 +57,7 @@ class Random_Curriculum(Curriculum_Manager):
             self.agent_train_rewards.append(r_mean)            
             entropy = self.get_trainne_entropy()
             self.agent_train_entropy.append(entropy)
-            desciption = f"R:{np.round(np.mean(all_mean_rewards[-20:]), 2):08}, entropy: {entropy :01.4}"
+            desciption = f"R:{np.round(np.mean(self.agent_train_rewards[-20:]), 2):08}, entropy: {entropy :01.4}"
             pbar.set_description(desciption)
 
             self.train_epoch_end_callbacks(itr)
