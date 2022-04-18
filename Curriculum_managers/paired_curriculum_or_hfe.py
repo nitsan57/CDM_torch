@@ -56,7 +56,6 @@ class PAIRED_Curriculum_Original_R_History_filter_Entropy(Curriculum_Manager):
         number_episodes_for_regret_calc = 4 # same as paired paper
         self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
         self.antagonist.set_num_parallel_env(number_episodes_for_regret_calc)
-        all_mean_rewards = []
         pbar = tqdm(range(self.curr_iter, n_iters))
         number_of_envs_to_gen = 20
         entropy_coeff = 0.5
@@ -75,7 +74,6 @@ class PAIRED_Curriculum_Original_R_History_filter_Entropy(Curriculum_Manager):
             env = envs[env_idx]
             env_score = env_scores[env_idx]
             self.write_env(env, itr)
-            n_steps_collected = 0
             
             trainee_rewards = self.trainee.train_episodial(env, n_episodes*number_episodes_for_regret_calc, disable_tqdm=True)
             antagonist_rewards = self.antagonist.train_episodial(env, n_episodes*number_episodes_for_regret_calc, disable_tqdm=True)
@@ -83,9 +81,8 @@ class PAIRED_Curriculum_Original_R_History_filter_Entropy(Curriculum_Manager):
             trainee_avg_r = np.mean(trainee_rewards)
             anta_max_r = np.max(antagonist_rewards)
 
-            all_mean_rewards.append(trainee_avg_r)
+            self.agent_train_rewards.append(trainee_avg_r)
 
-            #Change agents update... as paired paper states..
             # # update rewards:
             reward_buffer_index = self.trainee.experience.reward_index
             
@@ -119,12 +116,9 @@ class PAIRED_Curriculum_Original_R_History_filter_Entropy(Curriculum_Manager):
             self.trainee.clear_exp()
             self.antagonist.clear_exp()
             
-            self.curr_iter = itr
-            if itr % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy, "history_env_list": self.history_env_list})
-            
+            self.train_epoch_end_callbacks(itr, {"history_env_list": self.history_env_list})
 
         self.trainee.close_env_procs()
         self.antagonist.close_env_procs()
-        return all_mean_rewards
+        return self.agent_train_rewards
         

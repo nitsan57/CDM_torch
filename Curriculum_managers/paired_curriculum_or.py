@@ -111,9 +111,8 @@ class PAIRED_Curriculum_OR(Curriculum_Manager):
             self.trainee.clear_exp()
             self.antagonist.clear_exp()
 
-            self.curr_iter = itr
-            if itr % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy})
+            self.train_epoch_end_callbacks(itr)
+
 
         self.trainee.close_env_procs()
         self.antagonist.close_env_procs()

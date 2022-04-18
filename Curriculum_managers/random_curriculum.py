@@ -48,22 +48,20 @@ class Random_Curriculum(Curriculum_Manager):
         number_episodes_for_regret_calc = 4
         self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
         pbar = tqdm(range(self.curr_iter, n_iters))
-        all_mean_rewards = []
-        for i in pbar:
+        for itr in pbar:
             env = self.create_envs()[0] 
-            self.write_env(env, i)
+            self.write_env(env, itr)
 
             rewards = self.trainee.train_episodial(env, n_episodes*number_episodes_for_regret_calc, max_episode_len=self.max_episode_steps, disable_tqdm=True) #train n_episodes per generated_env
             r_mean = np.mean(rewards)
-            all_mean_rewards.append(r_mean)            
+            self.agent_train_rewards.append(r_mean)            
             entropy = self.get_trainne_entropy()
             self.agent_train_entropy.append(entropy)
             desciption = f"R:{np.round(np.mean(all_mean_rewards[-20:]), 2):08}, entropy: {entropy :01.4}"
             pbar.set_description(desciption)
 
-            if i % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts(i, {"agent_train_entropy" : self.agent_train_entropy})
-            self.curr_iter = i
+            self.train_epoch_end_callbacks(itr)
+
                 
         self.trainee.close_env_procs()
-        return all_mean_rewards
+        return self.agent_train_rewards

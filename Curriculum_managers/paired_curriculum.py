@@ -74,7 +74,6 @@ class PAIRED_Curriculum(Curriculum_Manager):
         number_episodes_for_regret_calc = 4 # same as paired paper
         self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
         self.antagonist.set_num_parallel_env(number_episodes_for_regret_calc)
-        all_mean_rewards = []
         pbar = tqdm(range(self.curr_iter, n_iters))
         number_of_envs_to_gen = 1
 
@@ -116,7 +115,8 @@ class PAIRED_Curriculum(Curriculum_Manager):
                 trainee_mean_r +=trainee_avg_r
             
             total_mean_r = trainee_mean_r/n_episodes
-            all_mean_rewards.append(total_mean_r)
+
+            self.agent_train_rewards.append(total_mean_r)
             entropy = self.get_trainne_entropy()
             self.agent_train_entropy.append(entropy)
             desciption = f"R:{np.round(total_mean_r, 2):08}, entropy: {entropy :01.4}"
@@ -130,12 +130,11 @@ class PAIRED_Curriculum(Curriculum_Manager):
             self.trainee.clear_exp()
             self.antagonist.clear_exp()
             
-            self.curr_iter = itr
-            if itr % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy})
+            self.train_epoch_end_callbacks(itr)
+
             
 
         self.trainee.close_env_procs()
         self.antagonist.close_env_procs()
-        return all_mean_rewards
+        return self.agent_train_rewards
         

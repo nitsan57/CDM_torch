@@ -78,7 +78,6 @@ class Curriculum_Unregulated_Entropy_History(Curriculum_Manager):
 
     def teach(self, n_iters, n_episodes=8):
         self.set_agents_to_train_mode()
-        all_mean_rewards = []
         pbar = tqdm(range(self.curr_iter, n_iters))
         number_episodes_for_regret_calc = 4 # same as paired paper
         self.trainee.set_num_parallel_env(number_episodes_for_regret_calc)
@@ -103,7 +102,7 @@ class Curriculum_Unregulated_Entropy_History(Curriculum_Manager):
 
             mean_r +=trainee_avg_r
             
-            all_mean_rewards.append(mean_r/n_episodes)
+            self.agent_train_rewards.append(mean_r/n_episodes)
 
 
             entropy = self.get_trainne_entropy()
@@ -129,10 +128,9 @@ class Curriculum_Unregulated_Entropy_History(Curriculum_Manager):
             self.teacher.clear_exp()
             self.trainee.clear_exp()
 
-            self.curr_iter = itr
-            if itr % self.save_agent_iters == self.near_save_coeff:
-                self.save_ckpts(itr, {"agent_train_entropy" : self.agent_train_entropy, "max_reward": self.max_reward, "history_env_list": self.history_env_list})
+            self.train_epoch_end_callbacks(itr, {"max_reward": self.max_reward, "history_env_list": self.history_env_list})
 
         self.trainee.close_env_procs()
-        return all_mean_rewards
+        return  self.agent_train_rewards
+
         
