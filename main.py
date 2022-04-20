@@ -7,9 +7,7 @@ import utils
 from Curriculum_managers.random_curriculum import Random_Curriculum
 from Curriculum_managers.paired_curriculum import PAIRED_Curriculum
 from Curriculum_managers.paired_curriculum_or import PAIRED_Curriculum_OR
-from Curriculum_managers.paired_curriculum_hf import PAIRED_Curriculum_History_filter
-from Curriculum_managers.paired_curriculum_hfe import PAIRED_Curriculum_History_filter_Entropy
-from Curriculum_managers.paired_curriculum_or_hfe import PAIRED_Curriculum_Original_R_History_filter_Entropy
+from Curriculum_managers.climb import CLIMB
 from Curriculum_managers.curriculum_no_regulator_he import Curriculum_Unregulated_Entropy_History
 import argparse
 
@@ -47,12 +45,8 @@ def main(args):
         teacher = PAIRED_Curriculum(env, teacher_agent=teacher_agent ,trainee=p_agent)
     elif args.method == "paired_or":
         teacher = PAIRED_Curriculum_OR(env, teacher_agent=teacher_agent ,trainee=p_agent)
-    elif args.method == "paired_hf":
-        teacher = PAIRED_Curriculum_History_filter(env, teacher_agent=teacher_agent ,trainee=p_agent)
-    elif args.method == "paired_hfe":
-        teacher = PAIRED_Curriculum_History_filter_Entropy(env, teacher_agent=teacher_agent ,trainee=p_agent)
-    elif args.method == "paired_or_hfe":
-        teacher = PAIRED_Curriculum_Original_R_History_filter_Entropy(env, teacher_agent=teacher_agent ,trainee=p_agent)
+    elif args.method == "climb":
+        teacher = CLIMB(env, teacher_agent=teacher_agent ,trainee=p_agent)
     elif args.method == "no_regulator":
         teacher = Curriculum_Unregulated_Entropy_History(env, teacher_agent=teacher_agent ,trainee=p_agent)
         

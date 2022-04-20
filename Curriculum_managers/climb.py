@@ -9,7 +9,7 @@ from Agents.agent_utils import ParallelEnv
 from tqdm import tqdm
 from scipy.stats import entropy as calc_entropy
 
-class PAIRED_Curriculum_Original_R_History_filter_Entropy(Curriculum_Manager):
+class CLIMB(Curriculum_Manager):
     def __init__(self, abstract_env, trainee, teacher_agent, save_dir=None) -> None:
 
         self.random_z_dim = (10,)
