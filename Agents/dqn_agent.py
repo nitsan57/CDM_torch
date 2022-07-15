@@ -80,6 +80,11 @@ class DQN_Agent(RL_Agent):
                     all_ent = self.calc_entropy_from_vec(all_actions)
                     for i in range(self.num_parallel_envs):
                         self.stored_entropy[i].append(all_ent[i])
+                        
+                if self.store_values:
+                    assert False, "Not supported yet"
+                    for i in range(self.num_parallel_envs):
+                        self.stored_values[i].append(values[i])           
 
                 selected_actions = torch.argmax(all_actions, -1).detach().cpu().numpy().astype(np.int32)
 

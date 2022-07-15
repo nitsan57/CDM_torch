@@ -10,10 +10,9 @@ import operator
 
 
 class PAIRED_Curriculum(Curriculum_Manager):
+    """https://arxiv.org/abs/2012.02096"""
     def __init__(self, abstract_env, trainee, teacher_agent, save_dir=None) -> None:
-        # if save_dir is None:
-        #     save_dir = "./results/PAIRED_Curriculum/" + abstract_env.__class__.__name__ + "/"
-
+        
         self.random_z_dim = (10,)
         self.teacher = teacher_agent
         self.teacher.add_to_obs_shape({'random_z': self.random_z_dim})
@@ -41,7 +40,7 @@ class PAIRED_Curriculum(Curriculum_Manager):
                 a = self.teacher.act(obs)
                 a_env.step_generator(a)
         # normal gym env again
-        # only because of **** const seed
+        # only because of const seed
         self.abstract_env = a_env.get_envs()[0]
         return a_env.get_envs()
 
@@ -61,12 +60,12 @@ class PAIRED_Curriculum(Curriculum_Manager):
         self.teacher.load_agent(t_path)
         return {'trainee': self.trainee, 'antagonist': self.antagonist}
 
+
     def set_agents_to_train_mode(self):
         self.teacher.set_train_mode()
         self.trainee.set_train_mode()
         self.antagonist.set_train_mode()
         self.trainee.set_store_entropy(True)
-
 
 
     def teach(self, n_iters, n_episodes=8):

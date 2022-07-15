@@ -6,6 +6,16 @@ class Base_Env(ABC):
     def __init__(self) -> None:
         pass
 
+    def init_from_vec(self, vec):
+        """encoded number of loc"""
+        self.generator_min_steps_for_init_map = len(self.step_order)
+
+        assert len(vec) >= self.generator_min_steps_for_init_map, "provided vector is too short for init"
+        self.clear_env()
+        for v in vec:
+            self.step_generator(v)
+        self.reset()
+
     @abstractmethod
     def get_max_episode_steps(self,):
         raise NotImplementedError

@@ -428,7 +428,7 @@ def worker(env, conn, idx):
 
         elif (cmd == "close"):
             proc_running = False
-            conn.close()
+            return conn.close()
 
         elif (cmd == "sample_random_state"):
             state = env.sample_random_state()

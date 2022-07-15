@@ -63,6 +63,19 @@ class Curriculum_Manager(ABC):
 
         return entropy
 
+
+
+    def get_agent_values(self, agnet):
+        values = agnet.get_stored_values()
+        values = functools.reduce(operator.iconcat, values, [])
+        if values == []:
+            values = 1
+        else:
+            values = np.mean(values).astype(np.float32)
+        agnet.clear_stored_values()
+
+        return values
+
     def save_ckpts(self, i, extra_meta_data={}):
         self.save_models(i)
         # default data to save

@@ -127,7 +127,10 @@ class PPO_Agent(RL_Agent):
                     
                     for i in range(self.num_parallel_envs):
                         self.stored_entropy[i].append(all_ent[i])
-
+                        
+                if self.store_values:
+                    for i in range(self.num_parallel_envs):
+                        self.stored_values[i].append(values[i])
                 selected_actions = action.detach().cpu().numpy().astype(np.int32)
 
         return self.return_correct_actions_dim(selected_actions, num_obs)

@@ -10,8 +10,6 @@ from tqdm import tqdm
 class Random_Curriculum(Curriculum_Manager):
 
     def __init__(self, abstract_env, trainee, save_dir=None) -> None:
-        # if save_dir is None:
-        #     save_dir = "./results/Random_Curriculum/" + abstract_env.__class__.__name__ + "/"
         
         super().__init__(abstract_env, trainee, save_dir)
         self.trainee = trainee

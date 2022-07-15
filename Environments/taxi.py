@@ -817,13 +817,6 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         return self.reset()
 
 
-    def init_from_vec(self, vec):
-        """encoded number of loc"""
-        assert len(vec) >= self.generator_min_steps_for_init_map, "provided vector is too short for init"
-        self.clear_env()
-        for v in vec:
-            self.step_generator(v)
-        self.reset()
 
         
 

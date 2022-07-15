@@ -67,15 +67,35 @@ class RL_Agent(ABC):
             print("calling a function withou set_store_entropy first will allwayes return 0")
             return 0
 
+    def get_stored_values(self,):
+        if self.set_store_values:
+            return self.stored_values
+        else:
+            print("calling a function withou set_store_values first will allwayes return 0")
+            return 0
 
     def init_entropy_buffer(self):
         if self.store_entropy:
             self.stored_entropy = [[] for i in range(self.num_parallel_envs)]
 
 
+    def init_values_buffer(self):
+        if self.store_values:
+            self.stored_values = [[] for i in range(self.num_parallel_envs)]
+
+
+    def clear_stored_values(self):
+        self.init_values_buffer()
+
+
     def clear_stored_entropy(self):
         self.init_entropy_buffer()
 
+
+    def set_store_values(self, val : bool):
+        self.store_values= val
+        if self.store_values:
+            self.init_values_buffer()
 
     def set_store_entropy(self, val : bool):
         self.store_entropy = val
