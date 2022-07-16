@@ -1,4 +1,5 @@
 
+from Curriculum_managers.repaired_curriculum import REPAIRED_Curriculum
 from Environments.environments import train_envs, get_all_avail_envs
 from Models import fc, rnn
 from Agents.dqn_agent import DQN_Agent
@@ -38,7 +39,6 @@ def main(args):
 
     p_agent = PPO_Agent(obs_shape, n_actions, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
     teacher_agent = PPO_Agent(gen_obs_shape, gen_action_dim, device=device, batch_size=64, max_mem_size=10**5, lr=0.0001, model=rnn.RNN)
-    
     if args.method == "random":
         teacher = Random_Curriculum(env ,trainee=p_agent)
     elif args.method == "paired":
@@ -49,7 +49,8 @@ def main(args):
         teacher = CLIMB(env, teacher_agent=teacher_agent ,trainee=p_agent)
     elif args.method == "no_regulator":
         teacher = Curriculum_Unregulated_Entropy_History(env, teacher_agent=teacher_agent ,trainee=p_agent)
-        
+    elif args.method == "repaired":
+        teacher = REPAIRED_Curriculum(env, teacher_agent=teacher_agent ,trainee=p_agent)
 
     p_rewards = teacher.teach(n_iters=args.iters, n_episodes=1)
 

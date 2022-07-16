@@ -39,6 +39,7 @@ class RL_Agent(ABC):
         self.lr = lr
         self.env = None
         self.store_entropy = False
+        self.store_values = False
         self.init_entropy_buffer()
 
 
@@ -54,7 +55,6 @@ class RL_Agent(ABC):
 
     def fix_entropy_buffers(self, done_indices):
         tmp=  []
-        
         for i,x in enumerate(self.stored_entropy):
             tmp.append(x[:done_indices[i]])
         self.stored_entropy = tmp
@@ -67,12 +67,14 @@ class RL_Agent(ABC):
             print("calling a function withou set_store_entropy first will allwayes return 0")
             return 0
 
+
     def get_stored_values(self,):
         if self.set_store_values:
             return self.stored_values
         else:
             print("calling a function withou set_store_values first will allwayes return 0")
             return 0
+
 
     def init_entropy_buffer(self):
         if self.store_entropy:
@@ -93,7 +95,7 @@ class RL_Agent(ABC):
 
 
     def set_store_values(self, val : bool):
-        self.store_values= val
+        self.store_values = val
         if self.store_values:
             self.init_values_buffer()
 
@@ -207,6 +209,7 @@ class RL_Agent(ABC):
         assert self.num_parallel_envs <= self.batch_size, f"please provide batch_size>= num_parallel_envs current: {self.batch_size}, {num_parallel_envs},"
         self.num_parallel_envs = num_parallel_envs
         self.init_entropy_buffer()
+        self.init_values_buffer()
 
     @abstractmethod
     def act(self, observations, num_obs=1):

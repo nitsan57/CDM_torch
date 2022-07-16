@@ -176,6 +176,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
 
     def clear_env(self):
         """Fully resets the environment to an empty grid with no agent or goal."""
+        self.param_vec = np.zeros(self.adversary_max_steps)
         self.graph = grid_graph(dim=[self.width - 2, self.height - 2])
         self.wall_locs = []
 
@@ -316,12 +317,12 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
         Returns:
           Standard RL observation, reward (always 0), done, and info
         """
-        num_inited = AdversarialEnv.num_inited
 
         if loc >= self.adversary_action_dim:
             raise ValueError('Position passed to step_generator is outside the grid.')
         # self.param_vector.append(loc)
         # Add offset of 1 for outside walls
+        self.param_vec[self.generator_step_count] = loc
         x = int(loc % (self.width - 2)) + 1
         y = int(loc / (self.width - 2)) + 1
         done = False

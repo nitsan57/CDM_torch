@@ -9,7 +9,7 @@ import functools
 import operator
 from scipy.stats import entropy as calc_entropy
 from Agents.agent_utils import ParallelEnv
-
+import torch
 
 class Curriculum_Manager(ABC):
 
@@ -71,7 +71,7 @@ class Curriculum_Manager(ABC):
         if values == []:
             values = 1
         else:
-            values = np.mean(values).astype(np.float32)
+            values = torch.tensor(values).float().detach().cpu().numpy()
         agnet.clear_stored_values()
 
         return values

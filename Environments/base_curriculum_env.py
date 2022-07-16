@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
-
+import numpy as np
 
 
 class Base_Env(ABC):
     def __init__(self) -> None:
         pass
+
 
     def init_from_vec(self, vec):
         """encoded number of loc"""
@@ -16,6 +17,11 @@ class Base_Env(ABC):
             self.step_generator(v)
         self.reset()
 
+
+    @abstractmethod
+    def get_param_vec(self):
+        raise NotImplementedError
+        
     @abstractmethod
     def get_max_episode_steps(self,):
         raise NotImplementedError

@@ -140,6 +140,7 @@ class Sokoban(Base_Env):
         """
         step_order = self.step_order  # ["choose_goal", "choose_player" , "choose_stone"]  # else choose_walls
         current_turn = step_order[self.generator_step_count] if self.generator_step_count < len(step_order) else "place_walls"
+        self.param_vec[self.generator_step_count] = loc
         if loc >= self.generator_action_dim:
             raise ValueError('Position passed to step_generator is outside the grid.')
 
@@ -217,6 +218,7 @@ class Sokoban(Base_Env):
         return self.get_observation()
 
     def clear_env(self,):
+        self.param_vec = np.zeros(self.generator_max_steps)
         self.generator_step_count = 0
         self.player_pos = (2, 2)
         self.goal_pos = (4, 4)

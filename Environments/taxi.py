@@ -182,6 +182,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         self.step_order = ["choose_goal", "choose_passanger", "choose_fuel", "choose_agent"]  # else choose_walls
         self.generator_min_steps_for_init_map = len(self.step_order)
         self.generator_step_done = False
+        
         self.clear_env()
         self.dummy_init()
         self.observation_space = observation_space #gym.spaces.Dict(observation_space)
@@ -603,6 +604,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
 
     def clear_env(self):
         """Fully resets the environment to an empty grid with no agent or goal."""
+        self.param_vec = np.zeros(self.generator_max_steps)
         self.n_clutter_placed = 0
         self.generator_step_count = 0
         self._str_map = self.create_empty_map(self.size)
@@ -718,6 +720,9 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
             rewards = rewards[0]
         return obs, rewards, done, {"prob": p}
 
+    def get_param_vec(self):
+        return self.param_vec
+
     def step_generator(self, loc):
         """The generator gets n_clutter + 2 moves to place the goal, agent, blocks.
 
@@ -735,7 +740,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         current_turn = step_order[self.generator_step_count] if self.generator_step_count < len(step_order) else "place_walls"
         if loc >= self.generator_action_dim:
             raise ValueError('Position passed to step_generator is outside the grid.')
-
+        self.param_vec[self.generator_step_count] = loc
         # Add offset of 1 for outside walls
         row, col = self.unpack_index(loc)
 
