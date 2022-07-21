@@ -277,6 +277,11 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
         if obj is not None and obj.type == 'wall':
             self.grid.set(x, y, None)
 
+
+    def get_param_vec(self):
+        return self.param_vec
+
+
     def compute_shortest_path(self):
         if self.agent_start_pos is None or self.goal_pos is None:
             return
