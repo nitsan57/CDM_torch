@@ -184,7 +184,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
         self.generator_step_done = False
         
         self.clear_env()
-        self.dummy_init()
+        # self.dummy_init()
         self.observation_space = observation_space #gym.spaces.Dict(observation_space)
 
         
@@ -720,8 +720,10 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
             rewards = rewards[0]
         return obs, rewards, done, {"prob": p}
 
+
     def get_param_vec(self):
         return self.param_vec
+
 
     def step_generator(self, loc):
         """The generator gets n_clutter + 2 moves to place the goal, agent, blocks.
@@ -809,7 +811,7 @@ class SingleTaxiEnv(discrete.DiscreteEnv, Base_Env):
 
     def dummy_init(self):
         self.clear_env()
-        for i in range(13):
+        for i in range(7):
             self.step_generator(2 * i)
         self.reset_agent()
 
