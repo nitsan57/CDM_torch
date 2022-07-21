@@ -23,8 +23,7 @@ class RNN(AbstractModel):
     def forward(self, x):
         """x is padded pack"""
         temp_k = list(x.keys())[0]
-        device = x[temp_k].data.get_device()
-
+        device = x[temp_k].data.device
         concat_tensor = []
         for k in x:
             layer = self.l1[k]
