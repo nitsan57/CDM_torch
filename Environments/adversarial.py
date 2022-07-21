@@ -74,6 +74,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
         # Add two actions for placing the agent and goal.
         self.adversary_step_count = 0
         self.adversary_max_steps = self.n_clutter + 2
+        self.step_order = ["chose_agnet", "chose_goal", "chose_wall"] #just place holder for api
 
         super().__init__(
             n_agents=1,
@@ -327,7 +328,7 @@ class AdversarialEnv(multigrid.MultiGridEnv, Base_Env):
             raise ValueError('Position passed to step_generator is outside the grid.')
         # self.param_vector.append(loc)
         # Add offset of 1 for outside walls
-        self.param_vec[self.generator_step_count] = loc
+        self.param_vec[self.adversary_step_count] = loc
         x = int(loc % (self.width - 2)) + 1
         y = int(loc / (self.width - 2)) + 1
         done = False

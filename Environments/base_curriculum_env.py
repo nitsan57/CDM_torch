@@ -10,11 +10,15 @@ class Base_Env(ABC):
     def init_from_vec(self, vec):
         """encoded number of loc"""
         self.generator_min_steps_for_init_map = len(self.step_order)
-
+        max_steps = self.get_generator_max_steps()
         assert len(vec) >= self.generator_min_steps_for_init_map, "provided vector is too short for init"
         self.clear_env()
-        for v in vec:
+        for i,v in enumerate(vec):
+
+            if i >= max_steps:
+                break
             self.step_generator(v)
+
         self.reset()
 
 
