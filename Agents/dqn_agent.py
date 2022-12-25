@@ -191,11 +191,11 @@ class DQN_Agent(RL_Agent):
         num_samples = len(states)
 
         done_indices = torch.where(dones == True)[0].cpu().numpy().astype(np.int32)
-        seq_lens, sorted_data_sub_indices = self.get_seqs_indices_for_pack(done_indices)
+        seq_lens, seq_indices, sorted_data_sub_indices = self.get_seqs_indices_for_pack(done_indices)
         sorted_actions = actions[sorted_data_sub_indices]
         sorted_rewards = rewards[sorted_data_sub_indices]
         sorted_dones = dones[sorted_data_sub_indices]
-        pakced_states = self.pack_from_done_indices(states, seq_lens, done_indices)
+        pakced_states = self.pack_from_done_indices(states, seq_indices, seq_lens, done_indices)
         pakced_next_states = self.pack_from_done_indices(next_states, seq_lens, done_indices)
 
         num_grad_updates = num_samples // self.batch_size

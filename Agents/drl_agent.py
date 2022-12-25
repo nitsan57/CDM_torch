@@ -229,10 +229,10 @@ class RL_Agent(ABC):
         sorted_data_sub_indices = data_sub_indices[seq_indices]
         sorted_data_sub_indices = np.concatenate(sorted_data_sub_indices).astype(np.int32)
         seq_lens = all_lens[seq_indices]
-        return seq_lens, sorted_data_sub_indices
+        return seq_lens, seq_indices, sorted_data_sub_indices
 
 
-    def pack_from_done_indices(self, data, sorted_seq_lens, done_indices):
+    def pack_from_done_indices(self, data, seq_indices, sorted_seq_lens, done_indices):
         """returns pakced obs"""
         assert np.all(np.sort(sorted_seq_lens)[::-1] == sorted_seq_lens)
         batch_size = len(done_indices)
@@ -247,7 +247,8 @@ class RL_Agent(ABC):
             for d_i in done_indices:
                 temp.append(data[k][curr_idx:d_i+1])
                 curr_idx = d_i+1
-            temp.sort(reverse=True, key=lambda x: x.size())
+            temp = [temp[i] for i in seq_indices]
+            # temp.sort(reverse=True, key=lambda x: x.size())
             padded_seq_batch = torch.nn.utils.rnn.pad_sequence(temp, batch_first=True)
             padded_seq_batch = padded_seq_batch.reshape((batch_size, max_len, np.prod(obs_shape)))
             pakced_states = torch.nn.utils.rnn.pack_padded_sequence(padded_seq_batch, lengths=seq_lens, batch_first=True)
@@ -259,6 +260,7 @@ class RL_Agent(ABC):
         for k in sorted_data:
             tmp = [torch.from_numpy(x).float() for x in sorted_data[k]]
             states[k] = self.pack_sorted_data_h(tmp, sorted_seq_lens).to(self.device)
+            
         return states
 
     def pack_sorted_data_h(self, data, seq_lens):

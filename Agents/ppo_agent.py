@@ -287,8 +287,8 @@ class PPO_Agent(RL_Agent):
         assert len(done_indices) <= self.batch_size ,f"batch size < number of env to train, {self.batch_size}, {len(done_indices)}"
 
 
-        seq_lens, sorted_data_sub_indices = self.get_seqs_indices_for_pack(done_indices)
-        pakced_states = self.pack_from_done_indices(states, seq_lens, done_indices)
+        seq_lens, seq_indices, sorted_data_sub_indices = self.get_seqs_indices_for_pack(done_indices)
+        pakced_states = self.pack_from_done_indices(states, seq_indices, seq_lens, done_indices)
         # pakced_states = states[sorted_data_sub_indices]
         sorted_actions = actions[sorted_data_sub_indices]
         sorted_returns = returns[sorted_data_sub_indices]
@@ -332,6 +332,7 @@ class PPO_Agent(RL_Agent):
             actor_loss.backward()
             nn.utils.clip_grad_norm_(self.policy_nn.parameters(), 0.5)
             self.actor_optimizer.step()
+            self.reset_rnn_hidden()
 
 
     def clear_exp(self):
